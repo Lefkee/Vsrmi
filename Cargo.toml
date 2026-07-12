@@ -7,6 +7,36 @@ description = "A modern, modular terminal code editor written in Rust"
 license = "MIT"
 
 [dependencies]
+# TUI rendering + terminal backend. `crossterm_0_29` pins ratatui's backend to the
+# same crossterm version we depend on directly, so the two never diverge.
+ratatui = { version = "0.30", features = ["crossterm_0_29"] }
+crossterm = "0.29"
+
+# Text storage: a rope gives O(log n) edits and line indexing on large files.
+ropey = "1.6"
+
+# Search + regex based syntax highlighting.
+regex = "1.13"
+
+# Configuration and theming.
+serde = { version = "1", features = ["derive"] }
+toml = "1.1"
+dirs = "6"
+
+# Platform integrations.
+# `default-features = false` drops image-data support (and the `image` crate with
+# it) — an editor only ever puts text on the clipboard.
+arboard = { version = "3.6", default-features = false }
+notify = "8"
+
+# Terminal cell width for CJK / wide graphemes.
+unicode-width = "0.2"
+unicode-segmentation = "1.13"
+
+anyhow = "1"
+
+[lints.rust]
+unsafe_code = "forbid"
 
 [profile.release]
 opt-level = 3
