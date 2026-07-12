@@ -1,7 +1,10 @@
 mod app;
+mod renderer;
 
-use app::mode::Mode;
+use anyhow::Result;
 
-fn main() {
-    println!("termi — mode: {}", Mode::default().name());
+fn main() -> Result<()> {
+    renderer::install_panic_hook();
+    let _tui = renderer::Tui::new()?;
+    Ok(())
 }
