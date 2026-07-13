@@ -1,5 +1,6 @@
 mod app;
 mod editor;
+mod filesystem;
 mod renderer;
 
 use anyhow::Result;
