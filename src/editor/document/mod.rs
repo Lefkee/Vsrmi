@@ -15,9 +15,11 @@
 
 use std::path::{Path, PathBuf};
 
+use anyhow::{Result, bail};
 use ropey::{Rope, RopeSlice};
 
 use crate::editor::cursor::Position;
+use crate::filesystem;
 
 /// The line terminator a file uses on disk.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -136,6 +138,77 @@ impl Document {
             .and_then(Path::file_name)
             .and_then(std::ffi::OsStr::to_str)
             .unwrap_or("[No Name]")
+    }
+}
+
+/// Disk I/O.
+impl Document {
+    /// Open `path`, or start an empty document bound to it if it does not exist
+    /// yet — `termi new_file.rs` should not be an error.
+    ///
+    /// # Errors
+    /// Returns an error if the file exists but cannot be read or is not UTF-8.
+    pub fn open(path: PathBuf) -> Result<Self> {
+        if !path.exists() {
+            return Ok(Self {
+                path: Some(path),
+                ..Self::new()
+            });
+        }
+        if path.is_dir() {
+            bail!("{} is a directory", path.display());
+        }
+        let text = filesystem::read_file(&path)?;
+        Ok(Self::from_text(&text, Some(path)))
+    }
+
+    /// Write the document back to its own path.
+    ///
+    /// # Errors
+    /// Returns an error if the document has no path or the write fails.
+    pub fn save(&mut self) -> Result<()> {
+        let Some(path) = self.path.clone() else {
+            bail!("no file name — use :w <path>");
+        };
+        filesystem::write_file(&path, &self.to_disk_text())?;
+        self.dirty = false;
+        Ok(())
+    }
+
+    /// Write the document to `path` and adopt it as the document's own.
+    ///
+    /// # Errors
+    /// Returns an error if the write fails; the path is only adopted on success.
+    pub fn save_as(&mut self, path: PathBuf) -> Result<()> {
+        filesystem::write_file(&path, &self.to_disk_text())?;
+        self.path = Some(path);
+        self.dirty = false;
+        Ok(())
+    }
+
+    /// Reload from disk, discarding unsaved changes.
+    ///
+    /// # Errors
+    /// Returns an error if the document has no path or cannot be read.
+    pub fn reload(&mut self) -> Result<()> {
+        let Some(path) = self.path.clone() else {
+            bail!("nothing to reload");
+        };
+        let text = filesystem::read_file(&path)?;
+        *self = Self::from_text(&text, Some(path));
+        Ok(())
+    }
+
+    /// Serialise the rope with this document's line ending.
+    ///
+    /// This materialises the whole document; saving is not a hot path, and doing
+    /// it in one allocation keeps [`filesystem::write_file`]'s atomicity simple.
+    fn to_disk_text(&self) -> String {
+        let text = self.text.to_string();
+        match self.line_ending {
+            LineEnding::Lf => text,
+            LineEnding::Crlf => text.replace('\n', "\r\n"),
+        }
     }
 }
 
