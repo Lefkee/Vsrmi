@@ -13,3 +13,4 @@
 //! - [`command`] — ex-style commands typed into the command bar
 
 pub mod cursor;
+pub mod document;
