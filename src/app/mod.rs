@@ -37,7 +37,10 @@ const POLL_INTERVAL: Duration = Duration::from_millis(100);
 pub fn run(app: &mut App, tui: &mut Tui) -> Result<()> {
     while !app.should_quit() {
         tui.draw(|frame| {
-            let text = Line::from(format!("termi — {} — press Ctrl+Q to quit", app.mode.name()));
+            let text = Line::from(format!(
+                "termi — {} — press Ctrl+Q to quit",
+                app.mode.name()
+            ));
             frame.render_widget(Paragraph::new(text), frame.area());
         })?;
 

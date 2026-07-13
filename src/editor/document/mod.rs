@@ -214,7 +214,11 @@ impl Document {
     pub fn clamp(&self, pos: Position, allow_eol: bool) -> Position {
         let line = pos.line.min(self.last_line());
         let len = self.line_len(line);
-        let max_col = if allow_eol { len } else { len.saturating_sub(1) };
+        let max_col = if allow_eol {
+            len
+        } else {
+            len.saturating_sub(1)
+        };
         Position::new(line, pos.col.min(max_col))
     }
 
@@ -223,6 +227,73 @@ impl Document {
     pub fn line_string(&self, line: usize) -> String {
         let slice = self.line(line);
         slice.slice(..line_content_len(slice)).to_string()
+    }
+}
+
+/// Mutation.
+///
+/// These are the *only* two ways text changes. Every higher-level edit (typing,
+/// deleting a selection, replacing a match, undoing) is expressed as a sequence
+/// of `insert` and `remove`, which is what lets [`crate::undo`] record a single
+/// kind of event and replay it backwards.
+impl Document {
+    /// Insert `text` at a character index.
+    ///
+    /// The index is clamped, and `\r\n` in the incoming text is normalised —
+    /// pasted content routinely carries foreign line endings.
+    pub fn insert(&mut self, char_index: usize, text: &str) {
+        if text.is_empty() {
+            return;
+        }
+        let index = char_index.min(self.text.len_chars());
+        if text.contains('\r') {
+            self.text
+                .insert(index, &text.replace("\r\n", "\n").replace('\r', "\n"));
+        } else {
+            self.text.insert(index, text);
+        }
+        self.dirty = true;
+    }
+
+    /// Remove `[start, end)` and return what was removed, for the undo stack.
+    pub fn remove(&mut self, start: usize, end: usize) -> String {
+        let len = self.text.len_chars();
+        let (start, end) = (start.min(len), end.min(len));
+        if start >= end {
+            return String::new();
+        }
+        let removed = self.text.slice(start..end).to_string();
+        self.text.remove(start..end);
+        self.dirty = true;
+        removed
+    }
+
+    /// Copy an arbitrary character range into a `String`.
+    #[must_use]
+    pub fn slice_string(&self, start: usize, end: usize) -> String {
+        let len = self.text.len_chars();
+        let (start, end) = (start.min(len), end.min(len));
+        if start >= end {
+            return String::new();
+        }
+        self.text.slice(start..end).to_string()
+    }
+
+    /// Whether there are unsaved changes.
+    #[must_use]
+    pub const fn is_dirty(&self) -> bool {
+        self.dirty
+    }
+
+    /// Mark the document as matching what is on disk.
+    pub fn mark_clean(&mut self) {
+        self.dirty = false;
+    }
+
+    /// Mark the document as changed without going through `insert`/`remove`,
+    /// used when undo restores text that differs from the saved revision.
+    pub fn mark_dirty(&mut self) {
+        self.dirty = true;
     }
 }
 
