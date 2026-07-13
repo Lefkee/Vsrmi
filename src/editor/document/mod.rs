@@ -15,7 +15,9 @@
 
 use std::path::{Path, PathBuf};
 
-use ropey::Rope;
+use ropey::{Rope, RopeSlice};
+
+use crate::editor::cursor::Position;
 
 /// The line terminator a file uses on disk.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -135,4 +137,103 @@ impl Document {
             .and_then(std::ffi::OsStr::to_str)
             .unwrap_or("[No Name]")
     }
+}
+
+/// Read-only text access.
+///
+/// Every method here clamps its arguments instead of panicking. Cursors,
+/// viewports and search results all index the rope, and a document can shrink
+/// underneath any of them (undo, external reload); clamping turns a whole class
+/// of races into a harmless off-by-a-few instead of a crash.
+impl Document {
+    /// Total number of characters, excluding nothing.
+    #[must_use]
+    pub fn len_chars(&self) -> usize {
+        self.text.len_chars()
+    }
+
+    /// Number of lines. A trailing newline yields a final empty line, matching
+    /// what the user sees.
+    #[must_use]
+    pub fn len_lines(&self) -> usize {
+        self.text.len_lines()
+    }
+
+    /// Index of the last line.
+    #[must_use]
+    pub fn last_line(&self) -> usize {
+        self.text.len_lines() - 1
+    }
+
+    /// A line including its terminator, clamped to the document.
+    #[must_use]
+    pub fn line(&self, line: usize) -> RopeSlice<'_> {
+        self.text.line(line.min(self.last_line()))
+    }
+
+    /// Length of a line in characters, *excluding* the line terminator.
+    #[must_use]
+    pub fn line_len(&self, line: usize) -> usize {
+        line_content_len(self.line(line))
+    }
+
+    /// Character index of the first character on `line`.
+    #[must_use]
+    pub fn line_start(&self, line: usize) -> usize {
+        self.text.line_to_char(line.min(self.last_line()))
+    }
+
+    /// Convert a position into a rope character index.
+    #[must_use]
+    pub fn pos_to_char(&self, pos: Position) -> usize {
+        let line = pos.line.min(self.last_line());
+        self.text.line_to_char(line) + pos.col.min(self.line_len(line))
+    }
+
+    /// Convert a rope character index back into a position.
+    #[must_use]
+    pub fn char_to_pos(&self, index: usize) -> Position {
+        let index = index.min(self.text.len_chars());
+        let line = self.text.char_to_line(index);
+        Position::new(line, index - self.text.line_to_char(line))
+    }
+
+    /// The character at `pos`, or `None` at end of line or end of file.
+    #[must_use]
+    pub fn char_at(&self, pos: Position) -> Option<char> {
+        let line = pos.line.min(self.last_line());
+        (pos.col < self.line_len(line)).then(|| self.text.char(self.line_start(line) + pos.col))
+    }
+
+    /// Pull a position back inside the document.
+    ///
+    /// `allow_eol` is `true` in insert mode, where the cursor legitimately sits
+    /// one past the last character, and `false` in normal mode, where the cursor
+    /// always covers a real character.
+    #[must_use]
+    pub fn clamp(&self, pos: Position, allow_eol: bool) -> Position {
+        let line = pos.line.min(self.last_line());
+        let len = self.line_len(line);
+        let max_col = if allow_eol { len } else { len.saturating_sub(1) };
+        Position::new(line, pos.col.min(max_col))
+    }
+
+    /// Copy a line into a `String`, without its terminator.
+    #[must_use]
+    pub fn line_string(&self, line: usize) -> String {
+        let slice = self.line(line);
+        slice.slice(..line_content_len(slice)).to_string()
+    }
+}
+
+/// Length of a line slice with any `\r\n` / `\n` terminator removed.
+fn line_content_len(slice: RopeSlice<'_>) -> usize {
+    let mut len = slice.len_chars();
+    if len > 0 && slice.char(len - 1) == '\n' {
+        len -= 1;
+    }
+    if len > 0 && slice.char(len - 1) == '\r' {
+        len -= 1;
+    }
+    len
 }
