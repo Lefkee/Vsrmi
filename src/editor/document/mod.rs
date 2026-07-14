@@ -383,3 +383,74 @@ fn line_content_len(slice: RopeSlice<'_>) -> usize {
     }
     len
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn doc(text: &str) -> Document {
+        Document::from_text(text, None)
+    }
+
+    #[test]
+    fn detects_and_strips_crlf() {
+        let document = doc("a\r\nb\r\n");
+        assert_eq!(document.line_ending(), LineEnding::Crlf);
+        assert_eq!(document.line_len(0), 1);
+        assert_eq!(document.to_disk_text(), "a\r\nb\r\n");
+    }
+
+    #[test]
+    fn line_length_excludes_terminator() {
+        let document = doc("hello\nworld");
+        assert_eq!(document.line_len(0), 5);
+        assert_eq!(document.line_len(1), 5);
+        assert_eq!(document.len_lines(), 2);
+    }
+
+    #[test]
+    fn positions_round_trip_through_char_indices() {
+        let document = doc("ağaç\nşeker");
+        let pos = Position::new(1, 3);
+        assert_eq!(document.char_to_pos(document.pos_to_char(pos)), pos);
+    }
+
+    #[test]
+    fn clamping_respects_end_of_line_rules() {
+        let document = doc("abc\n");
+        assert_eq!(document.clamp(Position::new(0, 99), true).col, 3);
+        assert_eq!(document.clamp(Position::new(0, 99), false).col, 2);
+        assert_eq!(document.clamp(Position::new(99, 0), true).line, 1);
+    }
+
+    #[test]
+    fn clamping_an_empty_line_stays_at_zero() {
+        let document = doc("\n");
+        assert_eq!(document.clamp(Position::new(0, 5), false), Position::ZERO);
+    }
+
+    #[test]
+    fn edits_flip_the_dirty_flag() {
+        let mut document = doc("abc");
+        assert!(!document.is_dirty());
+        document.insert(1, "X");
+        assert!(document.is_dirty());
+        assert_eq!(document.text().to_string(), "aXbc");
+        assert_eq!(document.remove(1, 2), "X");
+        assert_eq!(document.text().to_string(), "abc");
+    }
+
+    #[test]
+    fn insert_normalises_pasted_line_endings() {
+        let mut document = doc("");
+        document.insert(0, "a\r\nb\rc");
+        assert_eq!(document.text().to_string(), "a\nb\nc");
+    }
+
+    #[test]
+    fn out_of_range_removal_is_a_no_op() {
+        let mut document = doc("abc");
+        assert_eq!(document.remove(10, 20), "");
+        assert_eq!(document.text().to_string(), "abc");
+    }
+}

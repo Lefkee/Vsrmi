@@ -246,3 +246,116 @@ impl Cursor {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn doc(text: &str) -> Document {
+        Document::from_text(text, None)
+    }
+
+    /// Run a motion in normal-mode semantics and report where the caret lands.
+    fn moved(text: &str, from: Position, motion: Motion) -> Position {
+        let document = doc(text);
+        let mut cursor = Cursor::at(from);
+        cursor.apply(motion, &document, false, false);
+        cursor.head
+    }
+
+    #[test]
+    fn horizontal_movement_wraps_between_lines() {
+        assert_eq!(
+            moved("ab\ncd", Position::new(0, 1), Motion::Right),
+            Position::new(1, 0)
+        );
+        // Normal mode puts the caret *on* a character, so wrapping left lands on
+        // the last character of the previous line rather than past it.
+        assert_eq!(
+            moved("ab\ncd", Position::new(1, 0), Motion::Left),
+            Position::new(0, 1)
+        );
+    }
+
+    #[test]
+    fn wrapping_left_in_insert_mode_lands_past_the_last_character() {
+        let document = doc("ab\ncd");
+        let mut cursor = Cursor::at(Position::new(1, 0));
+        cursor.apply(Motion::Left, &document, false, true);
+        assert_eq!(cursor.head, Position::new(0, 2));
+    }
+
+    #[test]
+    fn movement_stops_at_the_document_edges() {
+        assert_eq!(
+            moved("ab", Position::new(0, 0), Motion::Left),
+            Position::new(0, 0)
+        );
+        assert_eq!(
+            moved("ab", Position::new(0, 1), Motion::Right),
+            Position::new(0, 1)
+        );
+    }
+
+    #[test]
+    fn goal_column_survives_a_short_line() {
+        let document = doc("abcdef\nx\nabcdef");
+        let mut cursor = Cursor::at(Position::new(0, 5));
+        cursor.apply(Motion::Down(1), &document, false, false);
+        assert_eq!(cursor.head, Position::new(1, 0));
+        cursor.apply(Motion::Down(1), &document, false, false);
+        assert_eq!(cursor.head, Position::new(2, 5));
+    }
+
+    #[test]
+    fn horizontal_movement_resets_the_goal_column() {
+        let document = doc("abcdef\nx\nabcdef");
+        let mut cursor = Cursor::at(Position::new(0, 5));
+        cursor.apply(Motion::Down(1), &document, false, false);
+        cursor.apply(Motion::Left, &document, false, false);
+        assert_eq!(cursor.goal_col, None);
+    }
+
+    #[test]
+    fn extending_keeps_the_anchor_in_place() {
+        let document = doc("abcdef");
+        let mut cursor = Cursor::at(Position::new(0, 1));
+        cursor.apply(Motion::Right, &document, true, false);
+        assert_eq!(cursor.anchor, Position::new(0, 1));
+        assert!(cursor.has_selection());
+    }
+
+    #[test]
+    fn word_motions_walk_over_runs() {
+        let text = "let mut x = 1;";
+        assert_eq!(
+            moved(text, Position::new(0, 0), Motion::WordForward),
+            Position::new(0, 4)
+        );
+        assert_eq!(
+            moved(text, Position::new(0, 5), Motion::WordBackward),
+            Position::new(0, 4)
+        );
+        assert_eq!(
+            moved(text, Position::new(0, 0), Motion::WordEnd),
+            Position::new(0, 2)
+        );
+    }
+
+    #[test]
+    fn line_motions_use_the_first_non_blank() {
+        let text = "    indented";
+        assert_eq!(
+            moved(text, Position::new(0, 8), Motion::LineFirstNonBlank),
+            Position::new(0, 4)
+        );
+        assert_eq!(
+            moved(text, Position::new(0, 8), Motion::LineStart),
+            Position::new(0, 0)
+        );
+        assert_eq!(
+            moved(text, Position::new(0, 0), Motion::LineEnd),
+            Position::new(0, 11)
+        );
+    }
+}
