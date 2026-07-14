@@ -8,7 +8,9 @@
 //! UTF-8 and screen columns break on tabs and wide graphemes, so both
 //! conversions are done at the edges (rope access and rendering) instead.
 //!
-//! **Public API:** [`Position`], [`Cursor`].
+//! **Public API:** [`Position`], [`Cursor`], [`Motion`].
+
+use crate::editor::document::Document;
 
 /// A character-wise coordinate inside a document.
 ///
@@ -102,5 +104,91 @@ impl Cursor {
     /// Remember a goal column across a run of vertical motions.
     pub fn set_goal_col(&mut self, col: usize) {
         self.goal_col = Some(col);
+    }
+}
+
+/// A cursor movement, independent of the key that triggered it.
+///
+/// Keeping motions as data rather than as methods is what lets the keymap, the
+/// command bar and (later) macros all drive the same movement code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Motion {
+    /// One character left, wrapping to the previous line.
+    Left,
+    /// One character right, wrapping to the next line.
+    Right,
+    /// `n` lines up, keeping the goal column.
+    Up(usize),
+    /// `n` lines down, keeping the goal column.
+    Down(usize),
+}
+
+impl Cursor {
+    /// Apply `motion`.
+    ///
+    /// `extend` leaves the anchor alone (visual mode). `allow_eol` lets the
+    /// caret rest one past the final character (insert mode).
+    pub fn apply(&mut self, motion: Motion, doc: &Document, extend: bool, allow_eol: bool) {
+        match motion {
+            Motion::Up(n) => self.move_vertical(doc, n, true, extend, allow_eol),
+            Motion::Down(n) => self.move_vertical(doc, n, false, extend, allow_eol),
+            Motion::Left => {
+                let target = self.left_of(doc);
+                self.move_to(doc.clamp(target, allow_eol), extend);
+            }
+            Motion::Right => {
+                let target = self.right_of(doc, allow_eol);
+                self.move_to(doc.clamp(target, allow_eol), extend);
+            }
+        }
+    }
+
+    /// Vertical movement is the only motion that reads and writes the goal
+    /// column, so it does not go through [`Cursor::move_to`].
+    fn move_vertical(
+        &mut self,
+        doc: &Document,
+        count: usize,
+        up: bool,
+        extend: bool,
+        allow_eol: bool,
+    ) {
+        let goal = self.goal_col();
+        let line = if up {
+            self.head.line.saturating_sub(count)
+        } else {
+            self.head.line.saturating_add(count).min(doc.last_line())
+        };
+        self.head = doc.clamp(Position::new(line, goal), allow_eol);
+        if !extend {
+            self.anchor = self.head;
+        }
+        self.set_goal_col(goal);
+    }
+
+    fn left_of(&self, doc: &Document) -> Position {
+        if self.head.col > 0 {
+            Position::new(self.head.line, self.head.col - 1)
+        } else if self.head.line > 0 {
+            let line = self.head.line - 1;
+            Position::new(line, doc.line_len(line))
+        } else {
+            self.head
+        }
+    }
+
+    fn right_of(&self, doc: &Document, allow_eol: bool) -> Position {
+        // The rightmost legal column depends on the mode, so ask the document
+        // rather than assuming `line_len`.
+        let max_col = doc
+            .clamp(Position::new(self.head.line, usize::MAX), allow_eol)
+            .col;
+        if self.head.col < max_col {
+            Position::new(self.head.line, self.head.col + 1)
+        } else if self.head.line < doc.last_line() {
+            Position::new(self.head.line + 1, 0)
+        } else {
+            self.head
+        }
     }
 }
