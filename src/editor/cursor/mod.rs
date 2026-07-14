@@ -12,7 +12,7 @@
 
 pub mod word;
 
-use crate::editor::document::Document;
+use crate::editor::document::{Document, indent};
 
 /// A character-wise coordinate inside a document.
 ///
@@ -129,6 +129,18 @@ pub enum Motion {
     WordBackward,
     /// Last character of the current or next word.
     WordEnd,
+    /// Column zero of the current line.
+    LineStart,
+    /// First non-whitespace character of the current line.
+    LineFirstNonBlank,
+    /// End of the current line.
+    LineEnd,
+    /// Very start of the document.
+    DocStart,
+    /// Very end of the document.
+    DocEnd,
+    /// First non-blank character of a specific line, as used by `:42`.
+    ToLine(usize),
 }
 
 impl Cursor {
@@ -158,6 +170,28 @@ impl Cursor {
             }
             Motion::WordEnd => {
                 let target = word::word_end(doc, self.head);
+                self.move_to(doc.clamp(target, allow_eol), extend);
+            }
+            Motion::LineStart => {
+                self.move_to(Position::new(self.head.line, 0), extend);
+            }
+            Motion::LineFirstNonBlank => {
+                let col = indent::first_non_blank(doc, self.head.line);
+                let target = Position::new(self.head.line, col);
+                self.move_to(doc.clamp(target, allow_eol), extend);
+            }
+            Motion::LineEnd => {
+                let target = Position::new(self.head.line, usize::MAX);
+                self.move_to(doc.clamp(target, allow_eol), extend);
+            }
+            Motion::DocStart => self.move_to(Position::ZERO, extend),
+            Motion::DocEnd => {
+                let target = Position::new(doc.last_line(), usize::MAX);
+                self.move_to(doc.clamp(target, allow_eol), extend);
+            }
+            Motion::ToLine(line) => {
+                let line = line.min(doc.last_line());
+                let target = Position::new(line, indent::first_non_blank(doc, line));
                 self.move_to(doc.clamp(target, allow_eol), extend);
             }
         }
