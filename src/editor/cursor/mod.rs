@@ -10,6 +10,8 @@
 //!
 //! **Public API:** [`Position`], [`Cursor`], [`Motion`].
 
+pub mod word;
+
 use crate::editor::document::Document;
 
 /// A character-wise coordinate inside a document.
@@ -121,6 +123,12 @@ pub enum Motion {
     Up(usize),
     /// `n` lines down, keeping the goal column.
     Down(usize),
+    /// Start of the next word.
+    WordForward,
+    /// Start of the previous word.
+    WordBackward,
+    /// Last character of the current or next word.
+    WordEnd,
 }
 
 impl Cursor {
@@ -138,6 +146,18 @@ impl Cursor {
             }
             Motion::Right => {
                 let target = self.right_of(doc, allow_eol);
+                self.move_to(doc.clamp(target, allow_eol), extend);
+            }
+            Motion::WordForward => {
+                let target = word::next_word_start(doc, self.head);
+                self.move_to(doc.clamp(target, allow_eol), extend);
+            }
+            Motion::WordBackward => {
+                let target = word::prev_word_start(doc, self.head);
+                self.move_to(doc.clamp(target, allow_eol), extend);
+            }
+            Motion::WordEnd => {
+                let target = word::word_end(doc, self.head);
                 self.move_to(doc.clamp(target, allow_eol), extend);
             }
         }
