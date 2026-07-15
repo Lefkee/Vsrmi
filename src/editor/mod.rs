@@ -12,5 +12,6 @@
 //! - [`buffer`] — a document plus the cursors and viewport looking at it
 //! - [`command`] — ex-style commands typed into the command bar
 
+pub mod buffer;
 pub mod cursor;
 pub mod document;
