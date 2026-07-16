@@ -1,4 +1,5 @@
 mod app;
+mod config;
 mod editor;
 mod filesystem;
 mod renderer;
