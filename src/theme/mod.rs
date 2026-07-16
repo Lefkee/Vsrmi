@@ -13,6 +13,9 @@
 //! **Public API:** [`Theme`], [`SyntaxStyles`].
 
 pub mod builtin;
+pub mod custom;
+
+use std::path::Path;
 
 use ratatui::style::Style;
 
@@ -113,6 +116,26 @@ impl Theme {
         match name.trim().to_ascii_lowercase().as_str() {
             "light" => builtin::light(),
             _ => builtin::dark(),
+        }
+    }
+
+    /// Resolve a theme name, preferring `<themes_dir>/<name>.toml` over the
+    /// built-ins so a user can shadow `dark` with their own version.
+    ///
+    /// A missing or malformed file falls back to the built-in of the same name;
+    /// the caller gets the parse error back so it can be shown in the status bar
+    /// without the editor refusing to start.
+    #[must_use]
+    pub fn load(name: &str, themes_dir: &Path) -> (Self, Option<String>) {
+        let path = themes_dir.join(format!("{name}.toml"));
+        if !path.is_file() {
+            return (Self::builtin(name), None);
+        }
+        match crate::filesystem::read_file(&path)
+            .and_then(|text| Ok(toml::from_str::<custom::CustomTheme>(&text)?))
+        {
+            Ok(spec) => (spec.build(name), None),
+            Err(error) => (Self::builtin(name), Some(format!("{path:?}: {error}"))),
         }
     }
 }
