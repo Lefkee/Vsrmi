@@ -12,7 +12,29 @@
 //!
 //! **Public API:** [`Config`].
 
+use std::path::PathBuf;
+
 use serde::Deserialize;
+
+/// Directory holding `config.toml` and `themes/`.
+///
+/// `TERMI_CONFIG_DIR` overrides the platform default, which keeps tests and
+/// portable installs from touching the real user configuration.
+#[must_use]
+pub fn config_dir() -> PathBuf {
+    if let Some(dir) = std::env::var_os("TERMI_CONFIG_DIR") {
+        return PathBuf::from(dir);
+    }
+    dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("termi")
+}
+
+/// Directory searched for custom theme files.
+#[must_use]
+pub fn themes_dir() -> PathBuf {
+    config_dir().join("themes")
+}
 
 /// User settings.
 #[derive(Debug, Clone, Deserialize)]
@@ -72,6 +94,47 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Read `<config_dir>/config.toml`.
+    ///
+    /// Returns the defaults plus a human-readable warning when the file is
+    /// missing pieces or malformed. A broken config must never stop the editor
+    /// from opening — the user needs an editor to fix it with.
+    #[must_use]
+    pub fn load() -> (Self, Option<String>) {
+        let path = config_dir().join("config.toml");
+        if !path.is_file() {
+            return (Self::default(), None);
+        }
+        match crate::filesystem::read_file(&path)
+            .and_then(|text| Ok(toml::from_str::<Self>(&text)?))
+        {
+            Ok(mut config) => {
+                config.sanitise();
+                (config, None)
+            }
+            Err(error) => (
+                Self::default(),
+                Some(format!("{}: {error}", path.display())),
+            ),
+        }
+    }
+
+    /// Parse a config from a string, for tests and `:set`-style reloads.
+    ///
+    /// # Errors
+    /// Returns an error if the TOML is invalid or contains unknown keys.
+    pub fn parse(text: &str) -> Result<Self, toml::de::Error> {
+        let mut config: Self = toml::from_str(text)?;
+        config.sanitise();
+        Ok(config)
+    }
+
+    /// One level of indentation as it will be inserted.
+    #[must_use]
+    pub fn indent_unit(&self) -> String {
+        crate::editor::document::indent::indent_unit(self.tab_width, self.expand_tabs)
+    }
+
     /// Fix up values that would break rendering if taken literally.
     ///
     /// A `tab_width` of zero would make column arithmetic divide by zero, and an
@@ -80,5 +143,46 @@ impl Config {
     fn sanitise(&mut self) {
         self.tab_width = self.tab_width.clamp(1, 16);
         self.scrolloff = self.scrolloff.min(32);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_partial_file_keeps_the_remaining_defaults() {
+        let config = Config::parse("theme = \"light\"\ntab_width = 2").expect("valid config");
+        assert_eq!(config.theme, "light");
+        assert_eq!(config.tab_width, 2);
+        assert!(config.auto_indent);
+        assert!(config.line_numbers);
+    }
+
+    #[test]
+    fn an_empty_file_is_the_default_config() {
+        let config = Config::parse("").expect("valid config");
+        assert_eq!(config.theme, Config::default().theme);
+    }
+
+    #[test]
+    fn unknown_keys_are_reported_rather_than_ignored() {
+        let error = Config::parse("tab_wdith = 4").expect_err("typo must be rejected");
+        assert!(error.to_string().contains("tab_wdith"));
+    }
+
+    #[test]
+    fn dangerous_values_are_clamped() {
+        let config = Config::parse("tab_width = 0\nscrolloff = 9999").expect("valid config");
+        assert_eq!(config.tab_width, 1);
+        assert_eq!(config.scrolloff, 32);
+    }
+
+    #[test]
+    fn indent_unit_follows_the_tab_settings() {
+        let spaces = Config::parse("tab_width = 3\nexpand_tabs = true").expect("valid config");
+        assert_eq!(spaces.indent_unit(), "   ");
+        let tabs = Config::parse("expand_tabs = false").expect("valid config");
+        assert_eq!(tabs.indent_unit(), "\t");
     }
 }
