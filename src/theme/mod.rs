@@ -1,0 +1,118 @@
+//! # Theme
+//!
+//! **Purpose:** decide what every part of the screen looks like.
+//!
+//! **Responsibility:** map named UI and syntax slots onto concrete
+//! [`ratatui::style::Style`] values. Widgets ask the theme for a slot and never
+//! mention a colour themselves, so a new theme is a data change rather than a
+//! rendering change.
+//!
+//! Slots are struct fields rather than map keys: highlighting looks up a style
+//! per token, and a field access keeps that on the fast path.
+//!
+//! **Public API:** [`Theme`], [`SyntaxStyles`].
+
+pub mod builtin;
+
+use ratatui::style::Style;
+
+/// Styles for the chrome around and behind the text.
+#[derive(Debug, Clone)]
+pub struct Theme {
+    /// Human readable name, shown by `:theme`.
+    pub name: String,
+    /// Default text and the editor background.
+    pub text: Style,
+    /// Line numbers on inactive lines.
+    pub gutter: Style,
+    /// Line number on the cursor's line.
+    pub gutter_active: Style,
+    /// Full-width highlight behind the cursor's line.
+    pub cursor_line: Style,
+    /// Selected text.
+    pub selection: Style,
+    /// Status bar background.
+    pub status: Style,
+    /// Mode badge inside the status bar.
+    pub status_mode: Style,
+    /// Marker shown for unsaved buffers.
+    pub status_dirty: Style,
+    /// Command bar, including the leading `:`.
+    pub command: Style,
+    /// Error text in the command bar.
+    pub command_error: Style,
+    /// The focused tab.
+    pub tab_active: Style,
+    /// Unfocused tabs.
+    pub tab_inactive: Style,
+    /// Popup body.
+    pub popup: Style,
+    /// Popup border.
+    pub popup_border: Style,
+    /// Directories in the file tree.
+    pub tree_directory: Style,
+    /// Files in the file tree.
+    pub tree_file: Style,
+    /// Every search match.
+    pub search: Style,
+    /// The match the cursor is currently on.
+    pub search_active: Style,
+    /// Token styles.
+    pub syntax: SyntaxStyles,
+}
+
+/// Styles for syntax tokens.
+///
+/// `Copy` because highlighting hands these around per token; cloning a `String`
+/// there would be measurable on large files.
+#[derive(Debug, Clone, Copy)]
+pub struct SyntaxStyles {
+    /// `fn`, `if`, `return`, …
+    pub keyword: Style,
+    /// Type names and primitives.
+    pub type_name: Style,
+    /// Function and method names at definition or call sites.
+    pub function: Style,
+    /// String and character literals.
+    pub string: Style,
+    /// Numeric literals.
+    pub number: Style,
+    /// Line and block comments.
+    pub comment: Style,
+    /// `true`, `null`, `SCREAMING_CASE` constants.
+    pub constant: Style,
+    /// Operators such as `+`, `=>`, `::`.
+    pub operator: Style,
+    /// Brackets, commas, semicolons.
+    pub punctuation: Style,
+    /// Attributes, decorators and pragmas.
+    pub attribute: Style,
+    /// Macro invocations.
+    pub macro_call: Style,
+    /// Markdown headings.
+    pub heading: Style,
+    /// Markdown bold and italic.
+    pub emphasis: Style,
+    /// Markdown links and URLs.
+    pub link: Style,
+}
+
+impl Default for Theme {
+    fn default() -> Self {
+        builtin::dark()
+    }
+}
+
+impl Theme {
+    /// Look a built-in theme up by name, falling back to dark.
+    ///
+    /// Unknown names deliberately do not error: a typo in a config file should
+    /// still leave the user with a usable editor.
+    #[must_use]
+    pub fn builtin(name: &str) -> Self {
+        match name.trim().to_ascii_lowercase().as_str() {
+            "light" => builtin::light(),
+            _ => builtin::dark(),
+        }
+    }
+}

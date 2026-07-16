@@ -2,6 +2,7 @@ mod app;
 mod editor;
 mod filesystem;
 mod renderer;
+mod theme;
 
 use anyhow::Result;
 
