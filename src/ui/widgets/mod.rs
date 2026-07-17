@@ -10,5 +10,7 @@
 //! **Public API:** the widget types re-exported below.
 
 pub mod editor_view;
+pub mod status_bar;
 
 pub use editor_view::EditorView;
+pub use status_bar::StatusBar;
