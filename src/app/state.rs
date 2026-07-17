@@ -2,28 +2,163 @@
 //!
 //! **Purpose:** the single mutable value that the whole editor operates on.
 //!
-//! **Responsibility:** holds the editor mode and the "should we keep running"
-//! flag. Every subsystem reads from and writes to this struct; nothing else in
-//! the editor owns global mutable state.
+//! **Responsibility:** owns the open buffers, the active one, the mode, the
+//! resolved config and theme, and the transient message shown in the command
+//! bar. Every subsystem reads from and writes to this struct; nothing else in
+//! the editor keeps global mutable state.
 //!
-//! **Public API:** [`App`].
+//! **Public API:** [`App`], [`Status`].
+
+use std::path::{Path, PathBuf};
+
+use anyhow::Result;
 
 use super::mode::Mode;
+use crate::config::{self, Config};
+use crate::editor::buffer::Buffer;
+use crate::editor::document::Document;
+use crate::theme::Theme;
+
+/// A one-line message shown in the command bar until the next keystroke.
+#[derive(Debug, Clone, Default)]
+pub struct Status {
+    /// Text to display; empty means nothing to show.
+    pub text: String,
+    /// Render with the error style.
+    pub is_error: bool,
+}
 
 /// Editor-wide state.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct App {
     /// Current modal state.
     pub mode: Mode,
-    /// Set to `true` to leave the event loop after the current iteration.
+    /// Resolved user settings.
+    pub config: Config,
+    /// Resolved colour scheme.
+    pub theme: Theme,
+    /// Open buffers, in tab order. Never empty.
+    pub buffers: Vec<Buffer>,
+    /// Index of the focused buffer.
+    pub active: usize,
+    /// Text typed after `:` while in command mode.
+    pub command_line: String,
+    /// Message shown in the command bar.
+    pub status: Status,
     quit: bool,
 }
 
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl App {
-    /// Create an editor sitting in normal mode.
+    /// Start with configuration loaded from disk and one empty buffer.
+    ///
+    /// Configuration problems become a status message rather than a failure —
+    /// the editor is what the user needs in order to fix them.
     #[must_use]
     pub fn new() -> Self {
-        Self::default()
+        let (config, config_error) = Config::load();
+        let (theme, theme_error) = Theme::load(&config.theme, &config::themes_dir());
+
+        let mut app = Self {
+            mode: Mode::default(),
+            config,
+            theme,
+            buffers: vec![Buffer::empty()],
+            active: 0,
+            command_line: String::new(),
+            status: Status::default(),
+            quit: false,
+        };
+        if let Some(message) = config_error.or(theme_error) {
+            app.error(message);
+        }
+        app
+    }
+
+    /// The focused buffer.
+    #[must_use]
+    pub fn buffer(&self) -> &Buffer {
+        &self.buffers[self.active]
+    }
+
+    /// Mutable access to the focused buffer.
+    pub fn buffer_mut(&mut self) -> &mut Buffer {
+        &mut self.buffers[self.active]
+    }
+
+    /// Open `path`, focusing it if it is already open.
+    ///
+    /// # Errors
+    /// Returns an error if the file exists but cannot be read.
+    pub fn open(&mut self, path: PathBuf) -> Result<()> {
+        if let Some(index) = self.index_of(&path) {
+            self.active = index;
+            return Ok(());
+        }
+        let buffer = Buffer::new(Document::open(path)?);
+
+        // The initial scratch buffer is a placeholder, not a document the user
+        // asked for; replace it rather than accumulating an empty tab.
+        if self.buffers.len() == 1 && self.is_scratch(0) {
+            self.buffers[0] = buffer;
+            self.active = 0;
+        } else {
+            self.buffers.push(buffer);
+            self.active = self.buffers.len() - 1;
+        }
+        Ok(())
+    }
+
+    /// Close the focused buffer, keeping at least one open.
+    pub fn close_active(&mut self) {
+        if self.buffers.len() == 1 {
+            self.buffers[0] = Buffer::empty();
+            return;
+        }
+        self.buffers.remove(self.active);
+        self.active = self.active.min(self.buffers.len() - 1);
+    }
+
+    /// Focus the next or previous tab, wrapping around.
+    pub fn cycle_buffer(&mut self, forward: bool) {
+        let count = self.buffers.len();
+        self.active = if forward {
+            (self.active + 1) % count
+        } else {
+            (self.active + count - 1) % count
+        };
+    }
+
+    /// Whether any buffer has unsaved changes.
+    #[must_use]
+    pub fn has_unsaved_changes(&self) -> bool {
+        self.buffers.iter().any(|b| b.document.is_dirty())
+    }
+
+    /// Show an informational message.
+    pub fn info(&mut self, text: impl Into<String>) {
+        self.status = Status {
+            text: text.into(),
+            is_error: false,
+        };
+    }
+
+    /// Show an error message.
+    pub fn error(&mut self, text: impl Into<String>) {
+        self.status = Status {
+            text: text.into(),
+            is_error: true,
+        };
+    }
+
+    /// Clear any message currently on show.
+    pub fn clear_status(&mut self) {
+        self.status = Status::default();
     }
 
     /// Request shutdown; the event loop exits once the current event is done.
@@ -35,5 +170,17 @@ impl App {
     #[must_use]
     pub const fn should_quit(&self) -> bool {
         self.quit
+    }
+
+    fn index_of(&self, path: &Path) -> Option<usize> {
+        self.buffers
+            .iter()
+            .position(|b| b.document.path() == Some(path))
+    }
+
+    /// An untouched, unnamed buffer — the one opened at startup.
+    fn is_scratch(&self, index: usize) -> bool {
+        let document = &self.buffers[index].document;
+        document.path().is_none() && !document.is_dirty() && document.len_chars() == 0
     }
 }
