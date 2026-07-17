@@ -10,3 +10,4 @@
 //! **Public API:** [`text::DisplayLine`].
 
 pub mod text;
+pub mod widgets;
