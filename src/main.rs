@@ -4,6 +4,7 @@ mod editor;
 mod filesystem;
 mod renderer;
 mod theme;
+mod ui;
 
 use anyhow::Result;
 

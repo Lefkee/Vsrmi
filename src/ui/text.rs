@@ -1,0 +1,174 @@
+//! # Display layout
+//!
+//! **Purpose:** translate a line of text into terminal cells.
+//!
+//! **Responsibility:** the one place that knows a tab is not one column wide and
+//! that a CJK glyph is two. Everything above works in *character* indices;
+//! everything drawn works in *display columns*; this module is the bridge, and
+//! keeping it in one file is what stops off-by-one column bugs from spreading.
+//!
+//! **Public API:** [`DisplayLine`], [`DisplayCell`].
+
+use unicode_width::UnicodeWidthChar;
+
+/// One terminal cell of a rendered line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DisplayCell {
+    /// Glyph to draw, or `None` for the trailing half of a double-width glyph.
+    pub glyph: Option<char>,
+    /// Index of the source character this cell came from.
+    ///
+    /// Syntax spans, selections and search matches are all expressed in
+    /// character indices, so carrying it here makes styling a lookup rather than
+    /// a second pass of column arithmetic.
+    pub char_index: usize,
+}
+
+/// A line expanded into display cells.
+#[derive(Debug, Clone, Default)]
+pub struct DisplayLine {
+    /// One entry per terminal column.
+    pub cells: Vec<DisplayCell>,
+    /// Display column at which each source character starts.
+    ///
+    /// Has one extra entry for the position just past the last character, which
+    /// is where the caret sits at end of line.
+    pub char_columns: Vec<usize>,
+}
+
+impl DisplayLine {
+    /// Expand `line`, turning tabs into padding up to the next tab stop.
+    #[must_use]
+    pub fn new(line: &str, tab_width: usize) -> Self {
+        let tab_width = tab_width.max(1);
+        let mut cells = Vec::with_capacity(line.len());
+        let mut char_columns = Vec::with_capacity(line.len() + 1);
+
+        for (char_index, ch) in line.chars().enumerate() {
+            char_columns.push(cells.len());
+            match ch {
+                '\t' => {
+                    // A tab advances to the next multiple of `tab_width`, so its
+                    // width depends on where it starts.
+                    let stop = tab_width - (cells.len() % tab_width);
+                    for _ in 0..stop {
+                        cells.push(DisplayCell {
+                            glyph: Some(' '),
+                            char_index,
+                        });
+                    }
+                }
+                _ => {
+                    // Control characters have no width of their own; showing a
+                    // placeholder beats silently misaligning the rest of the line.
+                    let (glyph, width) = match ch.width() {
+                        Some(0) | None => ('\u{00b7}', 1),
+                        Some(width) => (ch, width),
+                    };
+                    cells.push(DisplayCell {
+                        glyph: Some(glyph),
+                        char_index,
+                    });
+                    for _ in 1..width {
+                        cells.push(DisplayCell {
+                            glyph: None,
+                            char_index,
+                        });
+                    }
+                }
+            }
+        }
+        char_columns.push(cells.len());
+
+        Self {
+            cells,
+            char_columns,
+        }
+    }
+
+    /// Total width of the line in columns.
+    #[must_use]
+    pub fn width(&self) -> usize {
+        self.cells.len()
+    }
+
+    /// Display column where character `char_index` starts.
+    ///
+    /// Indices past the end clamp to the end of the line, which is what a caret
+    /// resting past the last character needs.
+    #[must_use]
+    pub fn column_of(&self, char_index: usize) -> usize {
+        self.char_columns
+            .get(char_index)
+            .copied()
+            .unwrap_or_else(|| self.width())
+    }
+
+    /// Character index owning display column `column`.
+    ///
+    /// Used to turn a mouse click or a horizontal scroll offset back into a
+    /// text position.
+    #[must_use]
+    pub fn char_at_column(&self, column: usize) -> usize {
+        self.cells.get(column).map_or_else(
+            || self.char_columns.len().saturating_sub(1),
+            |cell| cell.char_index,
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn glyphs(line: &DisplayLine) -> String {
+        line.cells.iter().filter_map(|c| c.glyph).collect()
+    }
+
+    #[test]
+    fn tabs_advance_to_the_next_tab_stop() {
+        let line = DisplayLine::new("\tx", 4);
+        assert_eq!(line.width(), 5);
+        assert_eq!(glyphs(&line), "    x");
+        assert_eq!(line.column_of(1), 4);
+    }
+
+    #[test]
+    fn a_tab_after_text_fills_only_the_remaining_columns() {
+        let line = DisplayLine::new("ab\tc", 4);
+        // "ab" occupies 0..2, so the tab only needs two columns to reach 4.
+        assert_eq!(line.column_of(3), 4);
+        assert_eq!(line.width(), 5);
+    }
+
+    #[test]
+    fn wide_glyphs_occupy_two_columns() {
+        let line = DisplayLine::new("a漢b", 4);
+        assert_eq!(line.width(), 4);
+        assert_eq!(line.column_of(2), 3);
+        // The second column of the wide glyph is a continuation cell.
+        assert_eq!(line.cells[2].glyph, None);
+        assert_eq!(line.cells[2].char_index, 1);
+    }
+
+    #[test]
+    fn control_characters_get_a_visible_placeholder() {
+        let line = DisplayLine::new("a\u{7}b", 4);
+        assert_eq!(glyphs(&line), "a\u{00b7}b");
+    }
+
+    #[test]
+    fn the_caret_position_past_the_end_is_addressable() {
+        let line = DisplayLine::new("abc", 4);
+        assert_eq!(line.column_of(3), 3);
+        assert_eq!(line.column_of(99), 3);
+    }
+
+    #[test]
+    fn columns_map_back_to_characters() {
+        let line = DisplayLine::new("\tab", 4);
+        assert_eq!(line.char_at_column(0), 0);
+        assert_eq!(line.char_at_column(3), 0);
+        assert_eq!(line.char_at_column(4), 1);
+    }
+}
