@@ -16,12 +16,11 @@ use std::time::Duration;
 
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
-use ratatui::text::Line;
-use ratatui::widgets::Paragraph;
 
 pub use state::App;
 
 use crate::renderer::Tui;
+use crate::ui;
 
 /// How long to block on input before waking up anyway.
 ///
@@ -36,13 +35,8 @@ const POLL_INTERVAL: Duration = Duration::from_millis(100);
 /// Returns an error if drawing a frame or reading an event fails.
 pub fn run(app: &mut App, tui: &mut Tui) -> Result<()> {
     while !app.should_quit() {
-        tui.draw(|frame| {
-            let text = Line::from(format!(
-                "termi — {} — press Ctrl+Q to quit",
-                app.mode.name()
-            ));
-            frame.render_widget(Paragraph::new(text), frame.area());
-        })?;
+        tui.set_cursor_shape(app.mode.uses_bar_cursor())?;
+        tui.draw(|frame| ui::draw(frame, app))?;
 
         if !event::poll(POLL_INTERVAL)? {
             continue;
