@@ -9,10 +9,12 @@
 //!
 //! **Public API:** [`Buffer`].
 
+pub mod edit;
 pub mod view;
 
 use crate::editor::cursor::{Cursor, Motion, Position};
 use crate::editor::document::Document;
+use crate::undo::History;
 
 pub use view::View;
 
@@ -32,6 +34,9 @@ pub struct Buffer {
     cursors: Vec<Cursor>,
     /// Index into `cursors` of the one the viewport follows.
     primary: usize,
+    /// Undo and redo stacks for this buffer only — history is per file, so
+    /// switching tabs never mixes two files' edits into one undo step.
+    pub history: History,
 }
 
 impl Buffer {
@@ -43,6 +48,7 @@ impl Buffer {
             view: View::default(),
             cursors: vec![Cursor::at(Position::ZERO)],
             primary: 0,
+            history: History::default(),
         }
     }
 
