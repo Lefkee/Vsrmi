@@ -5,6 +5,7 @@ mod filesystem;
 mod renderer;
 mod theme;
 mod ui;
+mod undo;
 
 use anyhow::Result;
 
