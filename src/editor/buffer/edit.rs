@@ -154,6 +154,49 @@ impl Buffer {
         removed
     }
 
+    /// Insert clipboard content at the primary cursor.
+    ///
+    /// Line-wise content goes on its own line *below* the caret, the way `p`
+    /// behaves in vi; a fragment is spliced in at the caret. Getting this wrong
+    /// is the difference between pasting a function after the current one and
+    /// pasting it into the middle of a line.
+    pub fn paste(&mut self, text: &str, line_wise: bool) {
+        if text.is_empty() {
+            return;
+        }
+        if !line_wise {
+            self.insert_text(text);
+            self.checkpoint();
+            return;
+        }
+
+        let before = self.cursor().head;
+        let next_line = before.line + 1;
+        let (at, payload) = if next_line <= self.document.last_line() {
+            let mut payload = text.to_string();
+            if !payload.ends_with('\n') {
+                payload.push('\n');
+            }
+            (self.document.line_start(next_line), payload)
+        } else {
+            // Nothing follows this line, so the payload has to bring its own
+            // leading newline instead of a trailing one.
+            let payload = format!("\n{}", text.trim_end_matches('\n'));
+            (self.document.len_chars(), payload)
+        };
+
+        self.document.insert(at, &payload);
+        let landed = self
+            .document
+            .char_to_pos(at + usize::from(payload.starts_with('\n')));
+        self.history
+            .record(Change::insertion(at, payload.as_str()), before, landed);
+
+        self.clear_secondary_cursors();
+        self.cursor_mut().move_to(landed, false);
+        self.checkpoint();
+    }
+
     /// Undo one step, moving the caret to where the edit started.
     ///
     /// Returns `false` when there is nothing left to undo.
@@ -302,6 +345,30 @@ mod tests {
         assert_eq!(removed, "hello ");
         assert_eq!(text_of(&buf), "world");
         assert_eq!(buf.cursor().head, Position::ZERO);
+    }
+
+    #[test]
+    fn a_line_wise_paste_lands_on_its_own_line_below() {
+        let mut buf = buffer("first\nsecond");
+        buf.paste("copied\n", true);
+        assert_eq!(text_of(&buf), "first\ncopied\nsecond");
+        assert_eq!(buf.cursor().head, Position::new(1, 0));
+    }
+
+    #[test]
+    fn a_line_wise_paste_on_the_last_line_appends_a_new_line() {
+        let mut buf = buffer("only");
+        buf.paste("copied\n", true);
+        assert_eq!(text_of(&buf), "only\ncopied");
+        assert_eq!(buf.cursor().head, Position::new(1, 0));
+    }
+
+    #[test]
+    fn a_fragment_paste_splices_into_the_current_line() {
+        let mut buf = buffer("ac");
+        buf.cursor_mut().move_to(Position::new(0, 1), false);
+        buf.paste("b", false);
+        assert_eq!(text_of(&buf), "abc");
     }
 
     #[test]

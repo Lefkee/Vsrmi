@@ -90,6 +90,20 @@ impl Buffer {
         self.resort();
     }
 
+    /// Drop every selection, leaving the carets where they are.
+    pub fn collapse_selections(&mut self) {
+        for cursor in &mut self.cursors {
+            cursor.collapse();
+        }
+    }
+
+    /// Start a selection at every caret, as entering visual mode does.
+    pub fn anchor_selections(&mut self) {
+        for cursor in &mut self.cursors {
+            cursor.anchor_here();
+        }
+    }
+
     /// Add a secondary cursor, ignoring one that already exists there.
     pub fn add_cursor(&mut self, cursor: Cursor) {
         if self.cursors.iter().any(|c| c.head == cursor.head) {
