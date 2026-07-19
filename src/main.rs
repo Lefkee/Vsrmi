@@ -2,6 +2,7 @@ mod app;
 mod config;
 mod editor;
 mod filesystem;
+mod input;
 mod renderer;
 mod theme;
 mod ui;
