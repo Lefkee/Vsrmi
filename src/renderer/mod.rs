@@ -15,6 +15,7 @@ use std::panic;
 
 use anyhow::Result;
 use crossterm::cursor::{SetCursorStyle, Show};
+use crossterm::event::{DisableBracketedPaste, EnableBracketedPaste};
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
@@ -40,7 +41,10 @@ impl Tui {
     pub fn new() -> Result<Self> {
         enable_raw_mode()?;
         let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen)?;
+        // Bracketed paste turns a paste into one `Event::Paste` instead of a
+        // burst of key presses — without it, pasted text triggers auto-indent on
+        // every line and arrives mangled.
+        execute!(stdout, EnterAlternateScreen, EnableBracketedPaste)?;
         let terminal = Terminal::new(CrosstermBackend::new(stdout))?;
         Ok(Self { terminal })
     }
@@ -95,6 +99,7 @@ impl Drop for Tui {
 pub fn restore() -> io::Result<()> {
     execute!(
         io::stdout(),
+        DisableBracketedPaste,
         LeaveAlternateScreen,
         SetCursorStyle::DefaultUserShape,
         Show
