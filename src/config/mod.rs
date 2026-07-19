@@ -105,13 +105,8 @@ impl Config {
         if !path.is_file() {
             return (Self::default(), None);
         }
-        match crate::filesystem::read_file(&path)
-            .and_then(|text| Ok(toml::from_str::<Self>(&text)?))
-        {
-            Ok(mut config) => {
-                config.sanitise();
-                (config, None)
-            }
+        match crate::filesystem::read_file(&path).and_then(|text| Ok(Self::parse(&text)?)) {
+            Ok(config) => (config, None),
             Err(error) => (
                 Self::default(),
                 Some(format!("{}: {error}", path.display())),
@@ -119,7 +114,7 @@ impl Config {
         }
     }
 
-    /// Parse a config from a string, for tests and `:set`-style reloads.
+    /// Parse a config from a string.
     ///
     /// # Errors
     /// Returns an error if the TOML is invalid or contains unknown keys.

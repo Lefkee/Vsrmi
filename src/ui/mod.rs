@@ -62,6 +62,8 @@ impl Regions {
 pub fn draw(frame: &mut Frame, app: &mut App) {
     let show_tabs = app.config.show_tabs && app.buffers.len() > 1;
     let regions = Regions::split(frame.area(), show_tabs);
+    // Page motions need the window height, which is only known here.
+    app.viewport_height = regions.editor.height;
 
     // Scrolling has to happen before anything is drawn, and it is the only part
     // of rendering that mutates state. Destructuring keeps the borrow checker

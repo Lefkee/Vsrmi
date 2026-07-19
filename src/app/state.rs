@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 
 use super::mode::Mode;
+use crate::clipboard::Clipboard;
 use crate::config::{self, Config};
 use crate::editor::buffer::Buffer;
 use crate::editor::document::Document;
@@ -45,6 +46,13 @@ pub struct App {
     pub command_line: String,
     /// Message shown in the command bar.
     pub status: Status,
+    /// Yank register, backed by the system clipboard when one is available.
+    pub clipboard: Clipboard,
+    /// Height of the text area on the last frame.
+    ///
+    /// Page-up and page-down need it, and it is only knowable at render time,
+    /// so the renderer records it here for the next key press to use.
+    pub viewport_height: u16,
     quit: bool,
 }
 
@@ -64,6 +72,7 @@ impl App {
         let (config, config_error) = Config::load();
         let (theme, theme_error) = Theme::load(&config.theme, &config::themes_dir());
 
+        let clipboard = Clipboard::new(config.system_clipboard);
         let mut app = Self {
             mode: Mode::default(),
             config,
@@ -72,6 +81,8 @@ impl App {
             active: 0,
             command_line: String::new(),
             status: Status::default(),
+            clipboard,
+            viewport_height: 1,
             quit: false,
         };
         if let Some(message) = config_error.or(theme_error) {
@@ -89,6 +100,13 @@ impl App {
     /// Mutable access to the focused buffer.
     pub fn buffer_mut(&mut self) -> &mut Buffer {
         &mut self.buffers[self.active]
+    }
+
+    /// The focused buffer together with the settings, borrowed as disjoint
+    /// fields so an edit can read the config while mutating the text.
+    pub fn buffer_and_config(&mut self) -> (&mut Buffer, &Config) {
+        let index = self.active;
+        (&mut self.buffers[index], &self.config)
     }
 
     /// Open `path`, focusing it if it is already open.

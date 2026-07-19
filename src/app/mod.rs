@@ -9,16 +9,18 @@
 //!
 //! **Public API:** [`App`], [`run`].
 
+pub mod dispatch;
 pub mod mode;
 pub mod state;
 
 use std::time::Duration;
 
 use anyhow::Result;
-use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::event::{self, Event, KeyEventKind};
 
 pub use state::App;
 
+use crate::input::Input;
 use crate::renderer::Tui;
 use crate::ui;
 
@@ -34,6 +36,8 @@ const POLL_INTERVAL: Duration = Duration::from_millis(100);
 /// # Errors
 /// Returns an error if drawing a frame or reading an event fails.
 pub fn run(app: &mut App, tui: &mut Tui) -> Result<()> {
+    let mut input = Input::default();
+
     while !app.should_quit() {
         tui.set_cursor_shape(app.mode.uses_bar_cursor())?;
         tui.draw(|frame| ui::draw(frame, app))?;
@@ -46,9 +50,13 @@ pub fn run(app: &mut App, tui: &mut Tui) -> Result<()> {
             // Windows reports both press and release; acting on both would
             // double every keystroke.
             Event::Key(key) if key.kind == KeyEventKind::Press => {
-                if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('q') {
-                    app.quit();
-                }
+                let action = input.handle(key, app.mode);
+                dispatch::apply(app, action)?;
+            }
+            Event::Paste(text) => {
+                let (buffer, _) = app.buffer_and_config();
+                buffer.insert_text(&text);
+                buffer.checkpoint();
             }
             Event::Resize(_, _) => tui.clear()?,
             _ => {}
