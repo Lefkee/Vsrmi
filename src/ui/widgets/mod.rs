@@ -11,10 +11,12 @@
 
 pub mod command_bar;
 pub mod editor_view;
+pub mod search_box;
 pub mod status_bar;
 pub mod tabs;
 
 pub use command_bar::CommandBar;
 pub use editor_view::EditorView;
+pub use search_box::SearchBox;
 pub use status_bar::StatusBar;
 pub use tabs::{Tab, TabBar};

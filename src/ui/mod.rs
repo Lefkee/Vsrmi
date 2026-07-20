@@ -17,7 +17,7 @@ use ratatui::layout::{Constraint, Layout, Rect};
 
 use crate::app::App;
 use crate::editor::selection::Range;
-use crate::ui::widgets::{CommandBar, EditorView, StatusBar, Tab, TabBar, editor_view};
+use crate::ui::widgets::{CommandBar, EditorView, SearchBox, StatusBar, Tab, TabBar, editor_view};
 
 /// Where each part of the interface goes this frame.
 #[derive(Debug, Clone, Copy)]
@@ -83,6 +83,8 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         theme: &app.theme,
         config: &app.config,
         selection: selection_range(app),
+        search: app.search.is_active().then_some(&app.search),
+        active_match: active_match(app),
     };
     let editor_caret = editor.caret_position(regions.editor);
     frame.render_widget(editor, regions.editor);
@@ -108,17 +110,53 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
 
     frame.render_widget(status_bar(app), regions.status);
 
-    let command_bar = CommandBar {
-        command: app.mode.is_command().then_some(app.command_line.as_str()),
-        status: &app.status,
-        theme: &app.theme,
+    // The bottom line is either the search prompt, the command line, or the
+    // message area — never more than one at a time.
+    let prompt_caret = if app.mode.is_search() {
+        let search_box = SearchBox {
+            query: &app.search.query,
+            forward: app.search.forward,
+            error: app.search.error(),
+            theme: &app.theme,
+        };
+        let caret = search_box.caret_position(regions.command);
+        frame.render_widget(search_box, regions.command);
+        Some(caret)
+    } else {
+        let command_bar = CommandBar {
+            command: app.mode.is_command().then_some(app.command_line.as_str()),
+            status: &app.status,
+            theme: &app.theme,
+        };
+        let caret = command_bar.caret_position(regions.command);
+        frame.render_widget(command_bar, regions.command);
+        caret
     };
-    let command_caret = command_bar.caret_position(regions.command);
-    frame.render_widget(command_bar, regions.command);
 
-    if let Some(position) = command_caret.or(editor_caret) {
+    if let Some(position) = prompt_caret.or(editor_caret) {
         frame.set_cursor_position(position);
     }
+}
+
+/// The match the caret currently sits on, so it can be highlighted differently
+/// from the other matches.
+fn active_match(app: &App) -> Option<Range> {
+    if !app.search.is_active() {
+        return None;
+    }
+    let buffer = app.buffer();
+    let head = buffer.document.pos_to_char(buffer.cursor().head);
+    let line = buffer.cursor().head.line;
+    let line_start = buffer.document.line_start(line);
+
+    app.search
+        .matches_in_line(&buffer.document.line_string(line))
+        .into_iter()
+        .map(|found| Range {
+            start: line_start + found.start,
+            end: line_start + found.end,
+        })
+        .find(|range| range.contains(head))
 }
 
 /// The span to paint as selected, which exists only in visual modes.

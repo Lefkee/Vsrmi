@@ -18,6 +18,7 @@ use ratatui::widgets::Widget;
 use crate::config::Config;
 use crate::editor::buffer::Buffer;
 use crate::editor::selection::Range;
+use crate::search::{LineMatch, Search};
 use crate::theme::Theme;
 use crate::ui::text::DisplayLine;
 
@@ -67,6 +68,10 @@ pub struct EditorView<'a> {
     pub config: &'a Config,
     /// Span to paint with the selection style, if any.
     pub selection: Option<Range>,
+    /// Active search, used to highlight matches on the visible lines only.
+    pub search: Option<&'a Search>,
+    /// The match the caret is sitting on, painted more strongly than the rest.
+    pub active_match: Option<Range>,
 }
 
 impl EditorView<'_> {
@@ -143,12 +148,17 @@ impl EditorView<'_> {
             self.theme.text
         };
 
-        let display = DisplayLine::new(
-            &self.buffer.document.line_string(line),
-            self.config.tab_width,
-        );
+        let text = self.buffer.document.line_string(line);
+        let display = DisplayLine::new(&text, self.config.tab_width);
         let line_start = self.buffer.document.line_start(line);
         let left = self.buffer.view.left_col;
+
+        // Matching only the visible lines is what keeps search highlighting free
+        // on a large file: the cost is bounded by the window, not the document.
+        let matches = self
+            .search
+            .map(|search| search.matches_in_line(&text))
+            .unwrap_or_default();
 
         for column in 0..width {
             let Some(cell) = surface.cell_mut((x0 + column, y)) else {
@@ -157,7 +167,7 @@ impl EditorView<'_> {
             let index = left + usize::from(column);
             match display.cells.get(index) {
                 Some(display_cell) => {
-                    let style = self.style_for(base, line_start + display_cell.char_index);
+                    let style = self.style_for(base, line_start, display_cell.char_index, &matches);
                     match display_cell.glyph {
                         Some(glyph) => {
                             cell.set_char(glyph).set_style(style);
@@ -182,13 +192,31 @@ impl EditorView<'_> {
         }
     }
 
-    /// Combine the base style with the selection style when a character is
-    /// selected.
-    fn style_for(&self, base: Style, char_index: usize) -> Style {
-        match self.selection {
-            Some(range) if range.contains(char_index) => base.patch(self.theme.selection),
-            _ => base,
+    /// Layer the styles that can apply to one character.
+    ///
+    /// Order matters: the selection is what the user is acting on, so it wins
+    /// over a search match, and the match under the caret wins over the rest.
+    fn style_for(
+        &self,
+        base: Style,
+        line_start: usize,
+        column: usize,
+        matches: &[LineMatch],
+    ) -> Style {
+        let index = line_start + column;
+        if self.selection.is_some_and(|range| range.contains(index)) {
+            return base.patch(self.theme.selection);
         }
+        if self.active_match.is_some_and(|range| range.contains(index)) {
+            return base.patch(self.theme.search_active);
+        }
+        if matches
+            .iter()
+            .any(|found| column >= found.start && column < found.end)
+        {
+            return base.patch(self.theme.search);
+        }
+        base
     }
 }
 
