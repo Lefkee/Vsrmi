@@ -18,6 +18,7 @@ use crate::clipboard::Clipboard;
 use crate::config::{self, Config};
 use crate::editor::buffer::Buffer;
 use crate::editor::document::Document;
+use crate::search::Search;
 use crate::theme::Theme;
 
 /// A one-line message shown in the command bar until the next keystroke.
@@ -48,6 +49,8 @@ pub struct App {
     pub status: Status,
     /// Yank register, backed by the system clipboard when one is available.
     pub clipboard: Clipboard,
+    /// Incremental search state, kept across searches so `n` can repeat one.
+    pub search: Search,
     /// Height of the text area on the last frame.
     ///
     /// Page-up and page-down need it, and it is only knowable at render time,
@@ -82,6 +85,7 @@ impl App {
             command_line: String::new(),
             status: Status::default(),
             clipboard,
+            search: Search::default(),
             viewport_height: 1,
             quit: false,
         };

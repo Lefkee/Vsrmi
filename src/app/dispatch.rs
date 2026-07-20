@@ -104,6 +104,35 @@ pub fn apply(app: &mut App, action: Action) -> Result<()> {
         Action::Save => save(app),
         Action::Quit => quit(app),
 
+        Action::SearchStart { forward } => {
+            let origin = origin_offset(app);
+            app.search.begin(origin, forward);
+            enter_mode(app, Mode::Search);
+        }
+        Action::SearchInput(ch) => {
+            app.search.push(ch);
+            seek_from_origin(app);
+        }
+        Action::SearchBackspace => {
+            if app.search.query.is_empty() {
+                return cancel_search(app);
+            }
+            app.search.pop();
+            seek_from_origin(app);
+        }
+        Action::SearchSubmit => {
+            if app.search.is_active() {
+                let count = app.search.count(&app.buffer().document, MATCH_COUNT_CAP);
+                app.info(format!(
+                    "{count} match{}",
+                    if count == 1 { "" } else { "es" }
+                ));
+            }
+            enter_mode(app, Mode::Normal);
+        }
+        Action::SearchCancel => return cancel_search(app),
+        Action::SearchRepeat { forward } => repeat_search(app, forward),
+
         Action::CommandInput(ch) => app.command_line.push(ch),
         Action::CommandBackspace => {
             app.command_line.pop();
@@ -125,6 +154,58 @@ pub fn apply(app: &mut App, action: Action) -> Result<()> {
     Ok(())
 }
 
+/// Upper bound on how many matches `:search` will count.
+///
+/// Counting is O(document); on a file with millions of hits the exact number is
+/// not useful anyway, so it stops early and reports the cap.
+const MATCH_COUNT_CAP: usize = 10_000;
+
+/// Character offset of the primary caret.
+fn origin_offset(app: &App) -> usize {
+    let buffer = app.buffer();
+    buffer.document.pos_to_char(buffer.cursor().head)
+}
+
+/// Jump to the first match at or after where the search started.
+///
+/// Searching from the origin rather than from the current match is what makes
+/// deleting a character in the query walk *backwards* through the file instead
+/// of leaving the caret stranded further down.
+fn seek_from_origin(app: &mut App) {
+    let origin = app.search.origin();
+    let forward = app.search.forward;
+    let Some(found) = app.search.find(&app.buffer().document, origin, forward) else {
+        return;
+    };
+    let position = app.buffer().document.char_to_pos(found.start);
+    app.buffer_mut().cursor_mut().move_to(position, false);
+}
+
+/// Leave search mode and put the caret back where it started.
+fn cancel_search(app: &mut App) -> Result<()> {
+    let origin = app.search.origin();
+    let position = app.buffer().document.char_to_pos(origin);
+    app.buffer_mut().cursor_mut().move_to(position, false);
+    app.search.set_query(String::new());
+    enter_mode(app, Mode::Normal);
+    Ok(())
+}
+
+/// Jump to the next or previous match of the current query.
+fn repeat_search(app: &mut App, forward: bool) {
+    if !app.search.is_active() {
+        app.info("no previous search");
+        return;
+    }
+    let from = origin_offset(app);
+    let Some(found) = app.search.find(&app.buffer().document, from, forward) else {
+        app.error(format!("no match for {}", app.search.query));
+        return;
+    };
+    let position = app.buffer().document.char_to_pos(found.start);
+    app.buffer_mut().cursor_mut().move_to(position, false);
+}
+
 /// Switch modes, applying the invariants each mode requires.
 fn enter_mode(app: &mut App, mode: Mode) {
     if app.mode == mode {
@@ -143,7 +224,7 @@ fn enter_mode(app: &mut App, mode: Mode) {
         }
         Mode::Visual | Mode::VisualLine => app.buffer_mut().anchor_selections(),
         Mode::Command => app.command_line.clear(),
-        Mode::Insert => {}
+        Mode::Insert | Mode::Search => {}
     }
     app.mode = mode;
 }
