@@ -5,6 +5,7 @@ mod editor;
 mod filesystem;
 mod input;
 mod renderer;
+mod search;
 mod theme;
 mod ui;
 mod undo;
