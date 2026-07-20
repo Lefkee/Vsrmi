@@ -13,6 +13,7 @@
 //! - [`command`] — ex-style commands typed into the command bar
 
 pub mod buffer;
+pub mod command;
 pub mod cursor;
 pub mod document;
 pub mod selection;
