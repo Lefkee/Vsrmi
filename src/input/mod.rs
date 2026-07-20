@@ -82,6 +82,19 @@ pub enum Action {
     /// Leave the editor.
     Quit,
 
+    /// Open the search prompt, searching forwards or backwards.
+    SearchStart { forward: bool },
+    /// Append a character to the search query.
+    SearchInput(char),
+    /// Remove the last character of the search query.
+    SearchBackspace,
+    /// Accept the search and keep the caret on the match.
+    SearchSubmit,
+    /// Abandon the search and go back to where it started.
+    SearchCancel,
+    /// Jump to the next or previous match of the last search.
+    SearchRepeat { forward: bool },
+
     /// Append a character to the command line.
     CommandInput(char),
     /// Remove the last character of the command line.
@@ -113,6 +126,7 @@ impl Input {
             Mode::Insert => keymap::insert(key),
             Mode::Visual | Mode::VisualLine => keymap::visual(key, &mut self.pending),
             Mode::Command => keymap::command(key),
+            Mode::Search => keymap::search(key),
         };
         if matches!(action, Action::EnterMode(_)) {
             self.pending = None;

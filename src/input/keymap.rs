@@ -96,6 +96,11 @@ pub fn normal(key: KeyEvent, pending: &mut Option<char>) -> Action {
         KeyCode::Char('u') => Action::Undo,
         KeyCode::Char('p') => Action::Paste,
 
+        KeyCode::Char('/') => Action::SearchStart { forward: true },
+        KeyCode::Char('?') => Action::SearchStart { forward: false },
+        KeyCode::Char('n') => Action::SearchRepeat { forward: true },
+        KeyCode::Char('N') => Action::SearchRepeat { forward: false },
+
         // Sequences: the second key decides what happens.
         KeyCode::Char(prefix @ ('g' | 'd' | 'y')) => {
             *pending = Some(prefix);
@@ -207,6 +212,27 @@ pub fn command(key: KeyEvent) -> Action {
         KeyCode::Enter => Action::CommandSubmit,
         KeyCode::Backspace => Action::CommandBackspace,
         KeyCode::Char(ch) if is_plain(key.modifiers) => Action::CommandInput(ch),
+        _ => Action::None,
+    }
+}
+
+/// Search mode: the query is edited while the document follows along.
+pub fn search(key: KeyEvent) -> Action {
+    if is_ctrl(key.modifiers) {
+        // Stepping between matches without leaving the prompt.
+        return match key.code {
+            KeyCode::Char('n') => Action::SearchRepeat { forward: true },
+            KeyCode::Char('p') => Action::SearchRepeat { forward: false },
+            _ => Action::None,
+        };
+    }
+    match key.code {
+        KeyCode::Esc => Action::SearchCancel,
+        KeyCode::Enter => Action::SearchSubmit,
+        KeyCode::Backspace => Action::SearchBackspace,
+        KeyCode::Down => Action::SearchRepeat { forward: true },
+        KeyCode::Up => Action::SearchRepeat { forward: false },
+        KeyCode::Char(ch) if is_plain(key.modifiers) => Action::SearchInput(ch),
         _ => Action::None,
     }
 }

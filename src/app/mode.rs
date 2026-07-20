@@ -26,6 +26,8 @@ pub enum Mode {
     VisualLine,
     /// The command bar is focused and accumulating an ex-style command line.
     Command,
+    /// The search prompt is focused; the document scrolls as the query is typed.
+    Search,
 }
 
 impl Mode {
@@ -38,6 +40,7 @@ impl Mode {
             Self::Visual => "VISUAL",
             Self::VisualLine => "V-LINE",
             Self::Command => "COMMAND",
+            Self::Search => "SEARCH",
         }
     }
 
@@ -60,10 +63,22 @@ impl Mode {
         matches!(self, Self::Command)
     }
 
+    /// Whether the search prompt owns the keyboard.
+    #[must_use]
+    pub const fn is_search(self) -> bool {
+        matches!(self, Self::Search)
+    }
+
+    /// Whether the bottom line is a prompt rather than a message area.
+    #[must_use]
+    pub const fn uses_prompt(self) -> bool {
+        matches!(self, Self::Command | Self::Search)
+    }
+
     /// In insert mode the cursor sits *between* characters, so it is drawn as a
     /// bar; every other mode selects a character and uses a block.
     #[must_use]
     pub const fn uses_bar_cursor(self) -> bool {
-        matches!(self, Self::Insert | Self::Command)
+        matches!(self, Self::Insert | Self::Command | Self::Search)
     }
 }
