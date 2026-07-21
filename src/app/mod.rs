@@ -9,6 +9,7 @@
 //!
 //! **Public API:** [`App`], [`run`].
 
+pub mod commands;
 pub mod dispatch;
 pub mod mode;
 pub mod state;

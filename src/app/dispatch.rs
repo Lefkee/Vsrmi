@@ -15,6 +15,7 @@
 
 use anyhow::Result;
 
+use super::commands;
 use super::mode::Mode;
 use super::state::App;
 use crate::editor::cursor::Motion;
@@ -146,9 +147,10 @@ pub fn apply(app: &mut App, action: Action) -> Result<()> {
             enter_mode(app, Mode::Normal);
         }
         Action::CommandSubmit => {
+            // Take the line before leaving the mode: `enter_mode` clears it.
             let line = std::mem::take(&mut app.command_line);
             enter_mode(app, Mode::Normal);
-            let _ = line;
+            commands::run(app, &line);
         }
     }
     Ok(())
