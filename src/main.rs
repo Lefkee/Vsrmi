@@ -17,6 +17,7 @@ mod filesystem;
 mod input;
 mod renderer;
 mod search;
+mod syntax;
 mod theme;
 mod ui;
 mod undo;
