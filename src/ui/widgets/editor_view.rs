@@ -19,6 +19,7 @@ use crate::config::Config;
 use crate::editor::buffer::Buffer;
 use crate::editor::selection::Range;
 use crate::search::{LineMatch, Search};
+use crate::syntax::Highlight;
 use crate::theme::Theme;
 use crate::ui::text::DisplayLine;
 
@@ -159,6 +160,11 @@ impl EditorView<'_> {
             .search
             .map(|search| search.matches_in_line(&text))
             .unwrap_or_default();
+        let syntax = if self.config.syntax_highlighting {
+            self.buffer.syntax.highlight(&self.buffer.document, line)
+        } else {
+            Vec::new()
+        };
 
         for column in 0..width {
             let Some(cell) = surface.cell_mut((x0 + column, y)) else {
@@ -167,7 +173,13 @@ impl EditorView<'_> {
             let index = left + usize::from(column);
             match display.cells.get(index) {
                 Some(display_cell) => {
-                    let style = self.style_for(base, line_start, display_cell.char_index, &matches);
+                    let style = self.style_for(
+                        base,
+                        line_start,
+                        display_cell.char_index,
+                        &matches,
+                        &syntax,
+                    );
                     match display_cell.glyph {
                         Some(glyph) => {
                             cell.set_char(glyph).set_style(style);
@@ -202,6 +214,7 @@ impl EditorView<'_> {
         line_start: usize,
         column: usize,
         matches: &[LineMatch],
+        syntax: &[Highlight],
     ) -> Style {
         let index = line_start + column;
         if self.selection.is_some_and(|range| range.contains(index)) {
@@ -216,7 +229,15 @@ impl EditorView<'_> {
         {
             return base.patch(self.theme.search);
         }
-        base
+        // Syntax is the bottom layer: it colours text, while everything above
+        // colours the background, so a keyword inside a selection keeps both.
+        match syntax
+            .iter()
+            .find(|span| column >= span.start && column < span.end)
+        {
+            Some(span) => base.patch(self.theme.syntax.style_for(span.kind)),
+            None => base,
+        }
     }
 }
 

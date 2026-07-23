@@ -19,6 +19,8 @@ use std::path::Path;
 
 use ratatui::style::Style;
 
+use crate::syntax::HighlightKind;
+
 /// Styles for the chrome around and behind the text.
 #[derive(Debug, Clone)]
 pub struct Theme {
@@ -98,6 +100,33 @@ pub struct SyntaxStyles {
     pub emphasis: Style,
     /// Markdown links and URLs.
     pub link: Style,
+}
+
+impl SyntaxStyles {
+    /// The style for one token class.
+    ///
+    /// A `match` rather than a map: this runs once per styled character, and the
+    /// exhaustive match also means adding a [`HighlightKind`] cannot silently
+    /// fall back to the default colour.
+    #[must_use]
+    pub const fn style_for(&self, kind: HighlightKind) -> Style {
+        match kind {
+            HighlightKind::Keyword => self.keyword,
+            HighlightKind::Type => self.type_name,
+            HighlightKind::Function => self.function,
+            HighlightKind::String => self.string,
+            HighlightKind::Number => self.number,
+            HighlightKind::Comment => self.comment,
+            HighlightKind::Constant => self.constant,
+            HighlightKind::Operator => self.operator,
+            HighlightKind::Punctuation => self.punctuation,
+            HighlightKind::Attribute => self.attribute,
+            HighlightKind::Macro => self.macro_call,
+            HighlightKind::Heading => self.heading,
+            HighlightKind::Emphasis => self.emphasis,
+            HighlightKind::Link => self.link,
+        }
+    }
 }
 
 impl Default for Theme {

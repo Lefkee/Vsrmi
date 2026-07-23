@@ -16,6 +16,7 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 
 use crate::app::App;
+use crate::editor::buffer::Buffer;
 use crate::editor::selection::Range;
 use crate::ui::widgets::{CommandBar, EditorView, SearchBox, StatusBar, Tab, TabBar, editor_view};
 
@@ -75,7 +76,19 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             config,
             ..
         } = &mut *app;
-        editor_view::scroll_into_view(&mut buffers[*active], config, regions.editor);
+        let buffer = &mut buffers[*active];
+        editor_view::scroll_into_view(buffer, config, regions.editor);
+
+        // Extend the syntax state cache to cover what is about to be drawn.
+        // Like scrolling, this needs the window height and mutates, so it has to
+        // happen before the immutable render pass.
+        if config.syntax_highlighting {
+            let last = buffer.view.top_line + usize::from(regions.editor.height);
+            let Buffer {
+                document, syntax, ..
+            } = buffer;
+            syntax.ensure(document, last);
+        }
     }
 
     let editor = EditorView {
@@ -177,7 +190,7 @@ fn status_bar(app: &App) -> StatusBar<'_> {
         mode: app.mode,
         name: buffer.document.display_name(),
         dirty: buffer.document.is_dirty(),
-        language: "plain",
+        language: buffer.syntax.language_name(),
         position: buffer.cursor().head,
         line_count: buffer.document.len_lines(),
         line_ending: buffer.document.line_ending(),
