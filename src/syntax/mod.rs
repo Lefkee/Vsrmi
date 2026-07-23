@@ -17,12 +17,14 @@
 //! **Public API:** [`HighlightKind`], [`Highlight`], [`Language`], [`detect`],
 //! [`by_name`].
 
+pub mod cache;
 pub mod engine;
 pub mod languages;
 
 use std::path::Path;
 use std::sync::OnceLock;
 
+pub use cache::HighlightCache;
 pub use engine::{BlockState, Highlighter};
 
 /// A class of token, matching one slot in [`crate::theme::SyntaxStyles`].

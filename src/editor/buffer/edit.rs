@@ -38,6 +38,7 @@ impl Buffer {
                 .record(Change::insertion(at, text), before, after);
             self.cursors[index].move_to(after, false);
         }
+        self.invalidate_syntax_from(self.cursors[0].head.line);
         self.resort();
     }
 
@@ -64,6 +65,7 @@ impl Buffer {
                 .record(Change::insertion(at, text.as_str()), before, after);
             self.cursors[index].move_to(after, false);
         }
+        self.invalidate_syntax_from(self.cursors[0].head.line);
         self.resort();
     }
 
@@ -89,6 +91,7 @@ impl Buffer {
                 .record(Change::insertion(at, text.as_str()), before, after);
             self.cursors[index].move_to(after, false);
         }
+        self.invalidate_syntax_from(self.cursors[0].head.line);
         self.resort();
     }
 
@@ -111,6 +114,7 @@ impl Buffer {
                 .record(Change::deletion(start, removed), before, after);
             self.cursors[index].move_to(after, false);
         }
+        self.invalidate_syntax_from(self.cursors[0].head.line);
         self.resort();
     }
 
@@ -129,6 +133,7 @@ impl Buffer {
                 .record(Change::deletion(at, removed), before, after);
             self.cursors[index].move_to(after, false);
         }
+        self.invalidate_syntax_from(self.cursors[0].head.line);
         self.resort();
     }
 
@@ -150,6 +155,7 @@ impl Buffer {
         );
         self.clear_secondary_cursors();
         self.cursor_mut().move_to(after, false);
+        self.invalidate_syntax_from(after.line);
         self.history.checkpoint();
         removed
     }
@@ -194,6 +200,7 @@ impl Buffer {
 
         self.clear_secondary_cursors();
         self.cursor_mut().move_to(landed, false);
+        self.invalidate_syntax_from(before.line);
         self.checkpoint();
     }
 
@@ -249,6 +256,7 @@ impl Buffer {
         self.clear_secondary_cursors();
         let clamped = self.document.clamp(position, true);
         self.cursor_mut().move_to(clamped, false);
+        self.invalidate_syntax_from(clamped.line);
     }
 }
 

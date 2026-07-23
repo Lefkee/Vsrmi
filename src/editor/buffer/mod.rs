@@ -14,6 +14,7 @@ pub mod view;
 
 use crate::editor::cursor::{Cursor, Motion, Position};
 use crate::editor::document::Document;
+use crate::syntax::{self, HighlightCache};
 use crate::undo::History;
 
 pub use view::View;
@@ -37,19 +38,34 @@ pub struct Buffer {
     /// Undo and redo stacks for this buffer only — history is per file, so
     /// switching tabs never mixes two files' edits into one undo step.
     pub history: History,
+    /// Detected language and the per-line syntax state derived from it.
+    pub syntax: HighlightCache,
 }
 
 impl Buffer {
     /// Wrap a document in a fresh buffer with a single cursor at the top.
     #[must_use]
     pub fn new(document: Document) -> Self {
+        let syntax = HighlightCache::new(document.path().and_then(syntax::detect));
         Self {
             document,
             view: View::default(),
             cursors: vec![Cursor::at(Position::ZERO)],
             primary: 0,
             history: History::default(),
+            syntax,
         }
+    }
+
+    /// Re-run language detection, after the file has been renamed or reloaded.
+    pub fn detect_language(&mut self) {
+        self.syntax
+            .set_language(self.document.path().and_then(syntax::detect));
+    }
+
+    /// Mark every line after `line` as needing its syntax state recomputed.
+    pub fn invalidate_syntax_from(&mut self, line: usize) {
+        self.syntax.invalidate_from(line);
     }
 
     /// An empty scratch buffer.
