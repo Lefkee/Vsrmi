@@ -6,7 +6,9 @@
 //! bare "access denied" is useless in a status bar), and make saving atomic so
 //! that a crash mid-write cannot leave the user with a truncated source file.
 //!
-//! **Public API:** [`read_file`], [`write_file`].
+//! **Public API:** [`read_file`], [`write_file`], [`tree::Tree`].
+
+pub mod tree;
 
 use std::fs;
 use std::path::Path;
