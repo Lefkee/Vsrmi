@@ -17,6 +17,22 @@ use crate::editor::command::{Command, parser};
 use crate::editor::cursor::Motion;
 use crate::theme::Theme;
 
+/// Text of the `:help` popup.
+///
+/// Kept as one literal rather than generated from the keymap: the keymap is
+/// exhaustive and this is the short list worth memorising.
+const HELP: &str = "\
+MODES     i insert    v visual    V line    : command    / search
+
+MOVE      h j k l     w b e words     0 ^ $ line     gg G file
+EDIT      x delete    dd line     yy yank    p paste    u undo
+SEARCH    / next      ? previous      n / N repeat
+FILES     Ctrl+B tree     Ctrl+N / Ctrl+P buffers     Ctrl+S save
+
+COMMANDS  :w [path]  :q[!]  :wq  :e[!] path  :bn  :bp
+          :set <option> [value]     :theme <name>     :<line>
+          :%s/pattern/replacement/g";
+
 /// Parse and execute a command line, without the leading `:`.
 pub fn run(app: &mut App, line: &str) {
     match parser::parse(line) {
@@ -50,9 +66,7 @@ fn execute(app: &mut App, command: Command) {
             all,
             whole_file,
         } => substitute(app, &pattern, &replacement, all, whole_file),
-        Command::Help => app.info(
-            ":w :q :wq :e :bn :bp :set :theme :s/a/b/g  —  / search, n next, u undo, Ctrl+Q quit",
-        ),
+        Command::Help => app.show_popup("termi", HELP),
     }
 }
 
