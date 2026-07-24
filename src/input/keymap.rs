@@ -41,7 +41,7 @@ fn universal(key: KeyEvent) -> Option<Action> {
             half: true,
         },
         KeyCode::Char('e') => Action::Scroll(1),
-        KeyCode::Char('b') => Action::Scroll(-1),
+        KeyCode::Char('b') => Action::ToggleTree,
         _ => return None,
     })
 }
@@ -212,6 +212,24 @@ pub fn command(key: KeyEvent) -> Action {
         KeyCode::Enter => Action::CommandSubmit,
         KeyCode::Backspace => Action::CommandBackspace,
         KeyCode::Char(ch) if is_plain(key.modifiers) => Action::CommandInput(ch),
+        _ => Action::None,
+    }
+}
+
+/// Tree mode: the file browser has the keyboard.
+pub fn tree(key: KeyEvent) -> Action {
+    if is_ctrl(key.modifiers) && key.code == KeyCode::Char('b') {
+        return Action::ToggleTree;
+    }
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('q') => Action::EnterMode(Mode::Normal),
+        KeyCode::Enter | KeyCode::Char('l' | ' ') | KeyCode::Right => Action::TreeActivate,
+        KeyCode::Char('j') | KeyCode::Down => Action::TreeMove(1),
+        KeyCode::Char('k') | KeyCode::Up => Action::TreeMove(-1),
+        KeyCode::PageDown => Action::TreeMove(10),
+        KeyCode::PageUp => Action::TreeMove(-10),
+        KeyCode::Char('g') | KeyCode::Home => Action::TreeMove(isize::MIN),
+        KeyCode::Char('G') | KeyCode::End => Action::TreeMove(isize::MAX),
         _ => Action::None,
     }
 }

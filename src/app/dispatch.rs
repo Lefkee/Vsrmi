@@ -28,6 +28,12 @@ use crate::input::Action;
 /// Returns an error only for failures the user must see and that leave the
 /// editor in a valid state, such as a failed save.
 pub fn apply(app: &mut App, action: Action) -> Result<()> {
+    // A popup is modal: it swallows the keystroke that dismisses it, so the key
+    // that closes it cannot also edit the buffer underneath.
+    if app.popup.is_some() && !matches!(action, Action::None) {
+        app.popup = None;
+        return Ok(());
+    }
     // Any deliberate keystroke dismisses the previous message; keeping it around
     // makes it ambiguous which action it refers to.
     if !matches!(action, Action::None) {
@@ -104,6 +110,11 @@ pub fn apply(app: &mut App, action: Action) -> Result<()> {
         Action::CycleBuffer { forward } => app.cycle_buffer(forward),
         Action::Save => save(app),
         Action::Quit => quit(app),
+
+        Action::ToggleTree => toggle_tree(app),
+        Action::TreeMove(delta) => move_tree_selection(app, delta),
+        Action::TreeActivate => activate_tree_entry(app),
+        Action::ClosePopup => app.popup = None,
 
         Action::SearchStart { forward } => {
             let origin = origin_offset(app);
@@ -208,6 +219,64 @@ fn repeat_search(app: &mut App, forward: bool) {
     app.buffer_mut().cursor_mut().move_to(position, false);
 }
 
+/// Show or hide the file tree, focusing it when it appears.
+///
+/// The tree is built on first use and then kept: rebuilding it would collapse
+/// every directory the user had opened.
+fn toggle_tree(app: &mut App) {
+    app.tree_visible = !app.tree_visible;
+    if !app.tree_visible {
+        enter_mode(app, Mode::Normal);
+        return;
+    }
+    if app.tree.is_none() {
+        let root = app.tree_root();
+        app.tree = Some(crate::filesystem::tree::Tree::new(root));
+    }
+    enter_mode(app, Mode::Tree);
+}
+
+/// Move the tree selection, clamped to the list.
+fn move_tree_selection(app: &mut App, delta: isize) {
+    let Some(tree) = app.tree.as_ref() else {
+        return;
+    };
+    let last = tree.entries().len().saturating_sub(1);
+    app.tree_selected = match delta {
+        isize::MIN => 0,
+        isize::MAX => last,
+        delta if delta < 0 => app.tree_selected.saturating_sub(delta.unsigned_abs()),
+        delta => app
+            .tree_selected
+            .saturating_add(delta.unsigned_abs())
+            .min(last),
+    };
+}
+
+/// Expand a directory, or open a file and hand the keyboard back to the editor.
+fn activate_tree_entry(app: &mut App) {
+    let Some(tree) = app.tree.as_mut() else {
+        return;
+    };
+    let Some(path) = tree.activate(app.tree_selected) else {
+        // A directory was expanded or collapsed; the selection may now be past
+        // the end of a shorter list.
+        let last = app
+            .tree
+            .as_ref()
+            .map_or(0, |t| t.entries().len().saturating_sub(1));
+        app.tree_selected = app.tree_selected.min(last);
+        return;
+    };
+    match app.open(path) {
+        Ok(()) => {
+            app.tree_visible = false;
+            enter_mode(app, Mode::Normal);
+        }
+        Err(error) => app.error(error.to_string()),
+    }
+}
+
 /// Switch modes, applying the invariants each mode requires.
 fn enter_mode(app: &mut App, mode: Mode) {
     if app.mode == mode {
@@ -226,7 +295,7 @@ fn enter_mode(app: &mut App, mode: Mode) {
         }
         Mode::Visual | Mode::VisualLine => app.buffer_mut().anchor_selections(),
         Mode::Command => app.command_line.clear(),
-        Mode::Insert | Mode::Search => {}
+        Mode::Insert | Mode::Search | Mode::Tree => {}
     }
     app.mode = mode;
 }

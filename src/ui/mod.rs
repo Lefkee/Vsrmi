@@ -18,13 +18,17 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use crate::app::App;
 use crate::editor::buffer::Buffer;
 use crate::editor::selection::Range;
-use crate::ui::widgets::{CommandBar, EditorView, SearchBox, StatusBar, Tab, TabBar, editor_view};
+use crate::ui::widgets::{
+    CommandBar, EditorView, FileTree, Popup, SearchBox, StatusBar, Tab, TabBar, editor_view,
+};
 
 /// Where each part of the interface goes this frame.
 #[derive(Debug, Clone, Copy)]
 pub struct Regions {
     /// Tab strip, present only when more than one buffer is open.
     pub tabs: Option<Rect>,
+    /// File tree panel, present only when it is toggled on.
+    pub tree: Option<Rect>,
     /// The text area, gutter included.
     pub editor: Rect,
     /// One-line status bar.
@@ -41,7 +45,7 @@ impl Regions {
     /// to fit everything the flexible region shrinks rather than the fixed ones
     /// overlapping.
     #[must_use]
-    pub fn split(area: Rect, show_tabs: bool) -> Self {
+    pub fn split(area: Rect, show_tabs: bool, show_tree: bool) -> Self {
         let [tabs, body, status, command] = Layout::vertical([
             Constraint::Length(u16::from(show_tabs)),
             Constraint::Min(1),
@@ -50,9 +54,22 @@ impl Regions {
         ])
         .areas(area);
 
+        // The tree takes a fixed slice of the width, capped so it never crowds
+        // out the text on a narrow terminal.
+        let tree_width = if show_tree {
+            (body.width / 4)
+                .clamp(16, 40)
+                .min(body.width.saturating_sub(20))
+        } else {
+            0
+        };
+        let [tree, editor] =
+            Layout::horizontal([Constraint::Length(tree_width), Constraint::Min(1)]).areas(body);
+
         Self {
             tabs: show_tabs.then_some(tabs),
-            editor: body,
+            tree: (tree_width > 0).then_some(tree),
+            editor,
             status,
             command,
         }
@@ -62,7 +79,7 @@ impl Regions {
 /// Render one frame of the editor.
 pub fn draw(frame: &mut Frame, app: &mut App) {
     let show_tabs = app.config.show_tabs && app.buffers.len() > 1;
-    let regions = Regions::split(frame.area(), show_tabs);
+    let regions = Regions::split(frame.area(), show_tabs, app.tree_visible);
     // Page motions need the window height, which is only known here.
     app.viewport_height = regions.editor.height;
 
@@ -121,6 +138,24 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         );
     }
 
+    if let (Some(area), Some(tree)) = (regions.tree, app.tree.as_ref()) {
+        let title = tree
+            .root()
+            .file_name()
+            .and_then(std::ffi::OsStr::to_str)
+            .unwrap_or("files");
+        frame.render_widget(
+            FileTree {
+                entries: tree.entries(),
+                selected: app.tree_selected,
+                focused: app.mode == crate::app::mode::Mode::Tree,
+                title,
+                theme: &app.theme,
+            },
+            area,
+        );
+    }
+
     frame.render_widget(status_bar(app), regions.status);
 
     // The bottom line is either the search prompt, the command line, or the
@@ -145,6 +180,20 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         frame.render_widget(command_bar, regions.command);
         caret
     };
+
+    // The popup is modal, so it is drawn last and hides the caret.
+    if let Some((title, body)) = app.popup.as_ref() {
+        frame.render_widget(
+            Popup {
+                title,
+                body,
+                hint: "press any key",
+                theme: &app.theme,
+            },
+            frame.area(),
+        );
+        return;
+    }
 
     if let Some(position) = prompt_caret.or(editor_caret) {
         frame.set_cursor_position(position);

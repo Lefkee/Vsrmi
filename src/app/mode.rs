@@ -28,6 +28,8 @@ pub enum Mode {
     Command,
     /// The search prompt is focused; the document scrolls as the query is typed.
     Search,
+    /// The file tree panel has the keyboard.
+    Tree,
 }
 
 impl Mode {
@@ -41,6 +43,7 @@ impl Mode {
             Self::VisualLine => "V-LINE",
             Self::Command => "COMMAND",
             Self::Search => "SEARCH",
+            Self::Tree => "TREE",
         }
     }
 

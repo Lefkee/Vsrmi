@@ -18,6 +18,7 @@ use crate::clipboard::Clipboard;
 use crate::config::{self, Config};
 use crate::editor::buffer::Buffer;
 use crate::editor::document::Document;
+use crate::filesystem::tree::Tree;
 use crate::search::Search;
 use crate::theme::Theme;
 
@@ -51,6 +52,15 @@ pub struct App {
     pub clipboard: Clipboard,
     /// Incremental search state, kept across searches so `n` can repeat one.
     pub search: Search,
+    /// File browser, built on first use and kept afterwards so the expanded
+    /// directories survive toggling the panel.
+    pub tree: Option<Tree>,
+    /// Highlighted row in the file tree.
+    pub tree_selected: usize,
+    /// Whether the file tree panel is drawn.
+    pub tree_visible: bool,
+    /// Modal message: title and body. Any key dismisses it.
+    pub popup: Option<(String, String)>,
     /// Height of the text area on the last frame.
     ///
     /// Page-up and page-down need it, and it is only knowable at render time,
@@ -86,6 +96,10 @@ impl App {
             status: Status::default(),
             clipboard,
             search: Search::default(),
+            tree: None,
+            tree_selected: 0,
+            tree_visible: false,
+            popup: None,
             viewport_height: 1,
             quit: false,
         };
@@ -181,6 +195,24 @@ impl App {
     /// Clear any message currently on show.
     pub fn clear_status(&mut self) {
         self.status = Status::default();
+    }
+
+    /// Show a modal message.
+    pub fn show_popup(&mut self, title: impl Into<String>, body: impl Into<String>) {
+        self.popup = Some((title.into(), body.into()));
+    }
+
+    /// The directory the file tree should show.
+    ///
+    /// The active file's own directory is the useful default; falling back to
+    /// the working directory keeps the panel usable for an unnamed buffer.
+    pub fn tree_root(&self) -> PathBuf {
+        self.buffer()
+            .document
+            .path()
+            .and_then(Path::parent)
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
     }
 
     /// Request shutdown; the event loop exits once the current event is done.

@@ -82,6 +82,15 @@ pub enum Action {
     /// Leave the editor.
     Quit,
 
+    /// Show or hide the file tree panel.
+    ToggleTree,
+    /// Move the file tree selection by `delta` rows.
+    TreeMove(isize),
+    /// Open the selected file, or expand the selected directory.
+    TreeActivate,
+    /// Dismiss the popup.
+    ClosePopup,
+
     /// Open the search prompt, searching forwards or backwards.
     SearchStart { forward: bool },
     /// Append a character to the search query.
@@ -127,6 +136,7 @@ impl Input {
             Mode::Visual | Mode::VisualLine => keymap::visual(key, &mut self.pending),
             Mode::Command => keymap::command(key),
             Mode::Search => keymap::search(key),
+            Mode::Tree => keymap::tree(key),
         };
         if matches!(action, Action::EnterMode(_)) {
             self.pending = None;
