@@ -201,6 +201,16 @@ impl Document {
         Ok(())
     }
 
+    /// Whether `text` is exactly what saving this document would produce.
+    ///
+    /// Used to tell a real external edit from the editor seeing its own write:
+    /// comparing content is reliable where comparing timestamps is not, and it
+    /// accounts for the line endings the file will be written with.
+    #[must_use]
+    pub fn matches_disk_text(&self, text: &str) -> bool {
+        self.to_disk_text() == text
+    }
+
     /// Serialise the rope with this document's line ending.
     ///
     /// This materialises the whole document; saving is not a hot path, and doing
