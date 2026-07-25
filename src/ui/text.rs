@@ -104,6 +104,42 @@ impl DisplayLine {
             .unwrap_or_else(|| self.width())
     }
 
+    /// Split the line into visual rows no wider than `width`.
+    ///
+    /// Returns half-open cell ranges. Breaks happen after the last space that
+    /// fits; a single word longer than the window is broken hard, because
+    /// refusing to break it would push it off screen entirely.
+    ///
+    /// An empty line still yields one row, so a blank line occupies a row like
+    /// any other.
+    #[must_use]
+    pub fn wrap(&self, width: usize) -> Vec<(usize, usize)> {
+        if width == 0 || self.cells.len() <= width {
+            return vec![(0, self.cells.len())];
+        }
+        let mut rows = Vec::new();
+        let mut start = 0;
+
+        while start < self.cells.len() {
+            let limit = start + width;
+            if limit >= self.cells.len() {
+                rows.push((start, self.cells.len()));
+                break;
+            }
+            // Break *after* the space so trailing spaces stay on the row above,
+            // which is what keeps the next row starting on a word.
+            let end = self.cells[start..limit]
+                .iter()
+                .rposition(|cell| cell.glyph == Some(' '))
+                .map(|offset| start + offset + 1)
+                .filter(|&candidate| candidate > start)
+                .unwrap_or(limit);
+            rows.push((start, end));
+            start = end;
+        }
+        rows
+    }
+
     /// Character index owning display column `column`.
     ///
     /// Used to turn a mouse click or a horizontal scroll offset back into a
@@ -162,6 +198,40 @@ mod tests {
         let line = DisplayLine::new("abc", 4);
         assert_eq!(line.column_of(3), 3);
         assert_eq!(line.column_of(99), 3);
+    }
+
+    #[test]
+    fn a_short_line_wraps_to_a_single_row() {
+        let line = DisplayLine::new("short", 4);
+        assert_eq!(line.wrap(20), vec![(0, 5)]);
+    }
+
+    #[test]
+    fn an_empty_line_still_occupies_one_row() {
+        assert_eq!(DisplayLine::new("", 4).wrap(20), vec![(0, 0)]);
+    }
+
+    #[test]
+    fn wrapping_breaks_after_a_space() {
+        let line = DisplayLine::new("aaa bbb ccc", 4);
+        assert_eq!(line.wrap(8), vec![(0, 8), (8, 11)]);
+    }
+
+    #[test]
+    fn a_word_longer_than_the_window_is_broken_hard() {
+        let line = DisplayLine::new("aaaaaaaaaa", 4);
+        assert_eq!(line.wrap(4), vec![(0, 4), (4, 8), (8, 10)]);
+    }
+
+    #[test]
+    fn wrapping_covers_every_cell_exactly_once() {
+        let line = DisplayLine::new("the quick brown fox jumps over it", 4);
+        let rows = line.wrap(10);
+        assert_eq!(rows.first().map(|r| r.0), Some(0));
+        assert_eq!(rows.last().map(|r| r.1), Some(line.width()));
+        for pair in rows.windows(2) {
+            assert_eq!(pair[0].1, pair[1].0);
+        }
     }
 
     #[test]
