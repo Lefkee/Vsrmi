@@ -43,20 +43,59 @@ pub fn gutter_width(config: &Config, line_count: usize) -> u16 {
 /// both of which are rendering concerns.
 pub fn scroll_into_view(buffer: &mut Buffer, config: &Config, area: Rect) {
     let gutter = gutter_width(config, buffer.document.len_lines());
-    let width = area.width.saturating_sub(gutter) as usize;
-    let height = area.height as usize;
-
+    let width = usize::from(area.width.saturating_sub(gutter));
+    let height = usize::from(area.height);
     let head = buffer.cursor().head;
-    let column = if config.word_wrap {
-        // Wrapped lines never scroll sideways.
-        0
-    } else {
+
+    if !config.word_wrap {
         let line = DisplayLine::new(&buffer.document.line_string(head.line), config.tab_width);
-        line.column_of(head.col)
+        buffer.view.scroll_to(
+            head.line,
+            line.column_of(head.col),
+            height,
+            width,
+            config.scrolloff,
+        );
+        return;
+    }
+
+    // With wrapping, a line is worth an unknown number of rows, so "does the
+    // caret fit?" has to be measured instead of computed. Walking the top of the
+    // view forward one line at a time is bounded by the window height.
+    buffer.view.left_col = 0;
+    if head.line < buffer.view.top_line {
+        buffer.view.top_line = head.line;
+    }
+    if width == 0 || height == 0 {
+        return;
+    }
+    let rows_of = |line: usize| {
+        DisplayLine::new(&buffer.document.line_string(line), config.tab_width)
+            .wrap(width)
+            .len()
     };
-    buffer
-        .view
-        .scroll_to(head.line, column, height, width, config.scrolloff);
+    while buffer.view.top_line < head.line {
+        let rows: usize = (buffer.view.top_line..=head.line).map(rows_of).sum();
+        if rows <= height {
+            break;
+        }
+        buffer.view.top_line += 1;
+    }
+}
+
+/// One screen row's slice of a document line.
+///
+/// Grouped into a struct because the row, the line and the cell range always
+/// travel together, and passing them separately made the drawing routine's
+/// signature hard to read.
+#[derive(Debug, Clone, Copy)]
+struct Row {
+    /// Terminal row to draw on.
+    y: u16,
+    /// Document line being drawn.
+    line: usize,
+    /// Half-open range of display cells this row shows.
+    cells: (usize, usize),
 }
 
 /// The text area and its gutter.
@@ -82,22 +121,43 @@ impl EditorView<'_> {
     pub fn caret_position(&self, area: Rect) -> Option<(u16, u16)> {
         let head = self.buffer.cursor().head;
         let view = self.buffer.view;
+        let gutter = gutter_width(self.config, self.buffer.document.len_lines());
+        let width = usize::from(area.width.saturating_sub(gutter));
+        let height = usize::from(area.height);
 
-        let row = head.line.checked_sub(view.top_line)?;
-        if row >= area.height as usize {
-            return None;
-        }
-
-        let line = DisplayLine::new(
+        let display = DisplayLine::new(
             &self.buffer.document.line_string(head.line),
             self.config.tab_width,
         );
-        let gutter = gutter_width(self.config, self.buffer.document.len_lines());
-        let column = line.column_of(head.col).checked_sub(view.left_col)?;
-        if column >= area.width.saturating_sub(gutter) as usize {
+        let target = display.column_of(head.col);
+
+        let (row, column) = if self.config.word_wrap {
+            // Every line above the caret may occupy several rows, so the row has
+            // to be counted rather than subtracted.
+            let mut row = 0usize;
+            for line in view.top_line..head.line {
+                row += self.rows_of(line, width).1.len();
+                if row >= height {
+                    return None;
+                }
+            }
+            let chunks = display.wrap(width);
+            let index = chunks
+                .iter()
+                .position(|(start, end)| target >= *start && target < *end)
+                // A caret resting past the last character belongs on the final row.
+                .unwrap_or(chunks.len() - 1);
+            (row + index, target - chunks[index].0)
+        } else {
+            (
+                head.line.checked_sub(view.top_line)?,
+                target.checked_sub(view.left_col)?,
+            )
+        };
+
+        if row >= height || column >= width {
             return None;
         }
-
         Some((
             area.x + gutter + u16::try_from(column).ok()?,
             area.y + u16::try_from(row).ok()?,
@@ -137,8 +197,18 @@ impl EditorView<'_> {
         }
     }
 
-    /// Draw one line of text into the row at `y`.
-    fn render_line(&self, surface: &mut Surface, area: Rect, y: u16, line: usize, caret: usize) {
+    /// Draw one screen row.
+    ///
+    /// `first_cell` is where in the expanded line the row starts: the horizontal
+    /// scroll offset when wrapping is off, and the start of a wrapped chunk when
+    /// it is on. Having one routine for both is what keeps selection, search and
+    /// syntax styling identical in the two modes.
+    fn render_row(&self, surface: &mut Surface, area: Rect, row: Row, caret: usize) {
+        let Row {
+            y,
+            line,
+            cells: (first_cell, last_cell),
+        } = row;
         let gutter = gutter_width(self.config, self.buffer.document.len_lines());
         let x0 = area.x + gutter;
         let width = area.width.saturating_sub(gutter);
@@ -152,7 +222,7 @@ impl EditorView<'_> {
         let text = self.buffer.document.line_string(line);
         let display = DisplayLine::new(&text, self.config.tab_width);
         let line_start = self.buffer.document.line_start(line);
-        let left = self.buffer.view.left_col;
+        let left = first_cell;
 
         // Matching only the visible lines is what keeps search highlighting free
         // on a large file: the cost is bounded by the window, not the document.
@@ -171,7 +241,9 @@ impl EditorView<'_> {
                 continue;
             };
             let index = left + usize::from(column);
-            match display.cells.get(index) {
+            // A wrapped row stops at its chunk boundary; the rest of the row is
+            // padding, not the next chunk's text.
+            match display.cells.get(index).filter(|_| index < last_cell) {
                 Some(display_cell) => {
                     let style = self.style_for(
                         base,
@@ -239,6 +311,104 @@ impl EditorView<'_> {
             None => base,
         }
     }
+
+    /// The expanded form of a line, and how it splits into screen rows.
+    fn rows_of(&self, line: usize, width: usize) -> (DisplayLine, Vec<(usize, usize)>) {
+        let display = DisplayLine::new(
+            &self.buffer.document.line_string(line),
+            self.config.tab_width,
+        );
+        let rows = display.wrap(width);
+        (display, rows)
+    }
+
+    /// Mark rows past the end of the document, like vi's tildes.
+    fn render_filler(&self, surface: &mut Surface, area: Rect, from_row: u16) {
+        for row in from_row..area.height {
+            if let Some(cell) = surface.cell_mut((area.x, area.y + row)) {
+                cell.set_char('~').set_style(self.theme.gutter);
+            }
+        }
+    }
+
+    /// One document line per screen row, scrolled horizontally.
+    fn render_unwrapped(&self, surface: &mut Surface, area: Rect, caret: usize) {
+        let top = self.buffer.view.top_line;
+        let left = self.buffer.view.left_col;
+
+        for row in 0..area.height {
+            let line = top + usize::from(row);
+            if line >= self.buffer.document.len_lines() {
+                self.render_filler(surface, area, row);
+                return;
+            }
+            let y = area.y + row;
+            self.render_gutter(surface, area, y, line, caret);
+            self.render_row(
+                surface,
+                area,
+                Row {
+                    y,
+                    line,
+                    cells: (left, usize::MAX),
+                },
+                caret,
+            );
+        }
+    }
+
+    /// Long lines continue on the next row; the gutter is only numbered once
+    /// per document line, so a wrapped line still reads as one line.
+    fn render_wrapped(&self, surface: &mut Surface, area: Rect, caret: usize) {
+        let width = usize::from(
+            area.width
+                .saturating_sub(gutter_width(self.config, self.buffer.document.len_lines())),
+        );
+        let mut row = 0u16;
+        let mut line = self.buffer.view.top_line;
+
+        while row < area.height {
+            if line >= self.buffer.document.len_lines() {
+                self.render_filler(surface, area, row);
+                return;
+            }
+            let (_, chunks) = self.rows_of(line, width);
+            for (index, (start, end)) in chunks.into_iter().enumerate() {
+                if row >= area.height {
+                    break;
+                }
+                let y = area.y + row;
+                if index == 0 {
+                    self.render_gutter(surface, area, y, line, caret);
+                } else {
+                    self.render_gutter_continuation(surface, area, y);
+                }
+                self.render_row(
+                    surface,
+                    area,
+                    Row {
+                        y,
+                        line,
+                        cells: (start, end),
+                    },
+                    caret,
+                );
+                row += 1;
+            }
+            line += 1;
+        }
+    }
+
+    /// Blank gutter for the second and later rows of a wrapped line.
+    fn render_gutter_continuation(&self, surface: &mut Surface, area: Rect, y: u16) {
+        let width = gutter_width(self.config, self.buffer.document.len_lines());
+        for offset in 0..width {
+            if let Some(cell) = surface.cell_mut((area.x + offset, y)) {
+                cell.set_char(if offset + 2 == width { '·' } else { ' ' })
+                    .set_style(self.theme.gutter);
+            }
+        }
+    }
 }
 
 impl Widget for EditorView<'_> {
@@ -247,24 +417,12 @@ impl Widget for EditorView<'_> {
             return;
         }
         surface.set_style(area, self.theme.text);
-
-        let document = &self.buffer.document;
         let caret = self.buffer.cursor().head.line;
-        let top = self.buffer.view.top_line;
 
-        for row in 0..area.height {
-            let y = area.y + row;
-            let line = top + usize::from(row);
-
-            if line >= document.len_lines() {
-                // Past the end of the document: a dim tilde, like vi.
-                if let Some(cell) = surface.cell_mut((area.x, y)) {
-                    cell.set_char('~').set_style(self.theme.gutter);
-                }
-                continue;
-            }
-            self.render_gutter(surface, area, y, line, caret);
-            self.render_line(surface, area, y, line, caret);
+        if self.config.word_wrap {
+            self.render_wrapped(surface, area, caret);
+        } else {
+            self.render_unwrapped(surface, area, caret);
         }
     }
 }
