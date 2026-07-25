@@ -9,6 +9,7 @@
 //! **Public API:** [`read_file`], [`write_file`], [`tree::Tree`].
 
 pub mod tree;
+pub mod watcher;
 
 use std::fs;
 use std::path::Path;
