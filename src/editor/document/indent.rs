@@ -10,7 +10,7 @@
 //! users expect while typing.
 //!
 //! **Public API:** [`first_non_blank`], [`indent_of`], [`indent_unit`],
-//! [`auto_indent_for_new_line`], [`dedent_after`].
+//! [`auto_indent_for_new_line`], [`should_dedent`].
 
 use ropey::RopeSlice;
 
@@ -84,24 +84,15 @@ fn opens_block(slice: RopeSlice<'_>, col: usize) -> bool {
         .is_some_and(|ch| matches!(ch, '{' | '[' | '(' | ':'))
 }
 
-/// How much indentation to strip when the user types a closing bracket as the
-/// first non-blank character of a line.
+/// Whether typing `ch` should remove one level of indentation first.
 ///
-/// Returns the number of characters to delete before the caret, or `0` when the
-/// line should be left alone.
+/// True only for a closing bracket typed as the first non-blank character of an
+/// indented line — that is the moment a human would reach for backspace, and
+/// doing it automatically is what makes `}` land under its opener.
 #[must_use]
-pub fn dedent_after(doc: &Document, line: usize, col: usize, ch: char, tab_width: usize) -> usize {
-    if !matches!(ch, '}' | ']' | ')') {
-        return 0;
-    }
-    // Only re-indent when the closing bracket is the first thing on the line.
-    if first_non_blank(doc, line) < col {
-        return 0;
-    }
-    let indent = indent_of(doc, line);
-    if indent.ends_with('\t') {
-        1
-    } else {
-        indent.chars().count().min(tab_width)
-    }
+pub fn should_dedent(doc: &Document, line: usize, col: usize, ch: char) -> bool {
+    matches!(ch, '}' | ']' | ')')
+        && col > 0
+        // Nothing but whitespace to the left.
+        && first_non_blank(doc, line) >= col
 }

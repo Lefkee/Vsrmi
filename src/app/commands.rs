@@ -71,6 +71,9 @@ fn execute(app: &mut App, command: Command) {
 }
 
 fn write(app: &mut App, path: Option<PathBuf>) {
+    if app.config.trim_trailing_whitespace {
+        app.buffer_mut().trim_trailing_whitespace();
+    }
     let result = match path {
         Some(path) => app.buffer_mut().document.save_as(path),
         None => app.buffer_mut().document.save(),
@@ -153,7 +156,20 @@ fn set_option(app: &mut App, key: &str, value: &str) {
         "cursorline" | "cul" | "highlight_current_line" => {
             app.config.highlight_current_line = boolean();
         }
-        "syntax" | "syntax_highlighting" => app.config.syntax_highlighting = boolean(),
+        // `:set syntax` takes either a switch or a language name, which is how
+        // both vi and every editor that copied it behave.
+        "syntax" | "syntax_highlighting" => {
+            if matches!(
+                value,
+                "true" | "false" | "on" | "off" | "yes" | "no" | "0" | "1"
+            ) {
+                app.config.syntax_highlighting = boolean();
+            } else if let Some(language) = crate::syntax::by_name(value) {
+                app.buffer_mut().syntax.set_language(Some(language));
+            } else {
+                return app.error(format!("unknown language: {value}"));
+            }
+        }
         "tabs" | "show_tabs" => app.config.show_tabs = boolean(),
         "tabstop" | "ts" | "tab_width" => {
             app.config.tab_width = number(app.config.tab_width).clamp(1, 16);

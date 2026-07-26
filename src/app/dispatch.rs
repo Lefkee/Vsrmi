@@ -19,6 +19,7 @@ use super::commands;
 use super::mode::Mode;
 use super::state::App;
 use crate::editor::cursor::Motion;
+use crate::editor::document::indent;
 use crate::editor::selection::Range;
 use crate::input::Action;
 
@@ -52,10 +53,7 @@ pub fn apply(app: &mut App, action: Action) -> Result<()> {
         }
         Action::Page { down, half } => page(app, down, half),
 
-        Action::Insert(ch) => {
-            let (buffer, _) = app.buffer_and_config();
-            buffer.insert_text(&ch.to_string());
-        }
+        Action::Insert(ch) => insert_char(app, ch),
         Action::InsertNewline => {
             let (buffer, config) = app.buffer_and_config();
             buffer.insert_newline(config);
@@ -114,7 +112,6 @@ pub fn apply(app: &mut App, action: Action) -> Result<()> {
         Action::ToggleTree => toggle_tree(app),
         Action::TreeMove(delta) => move_tree_selection(app, delta),
         Action::TreeActivate => activate_tree_entry(app),
-        Action::ClosePopup => app.popup = None,
 
         Action::SearchStart { forward } => {
             let origin = origin_offset(app);
@@ -165,6 +162,21 @@ pub fn apply(app: &mut App, action: Action) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// Insert one typed character, re-indenting first when it closes a block.
+///
+/// Typing `}` on an otherwise blank, indented line pulls the line back one level
+/// so the bracket lines up with its opener — the one piece of "smart" behaviour
+/// that a per-line editor can get right without a parser.
+fn insert_char(app: &mut App, ch: char) {
+    let (buffer, config) = app.buffer_and_config();
+    let head = buffer.cursor().head;
+
+    if config.auto_indent && indent::should_dedent(&buffer.document, head.line, head.col, ch) {
+        buffer.delete_backward(config);
+    }
+    buffer.insert_text(&ch.to_string());
 }
 
 /// Upper bound on how many matches `:search` will count.
@@ -412,6 +424,9 @@ fn add_cursor(app: &mut App, below: bool) {
 }
 
 fn save(app: &mut App) {
+    if app.config.trim_trailing_whitespace {
+        app.buffer_mut().trim_trailing_whitespace();
+    }
     match app.buffer_mut().document.save() {
         Ok(()) => {
             let name = app.buffer().document.display_name().to_string();

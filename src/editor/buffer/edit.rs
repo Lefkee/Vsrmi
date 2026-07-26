@@ -204,6 +204,40 @@ impl Buffer {
         self.checkpoint();
     }
 
+    /// Strip trailing spaces and tabs from every line.
+    ///
+    /// Returns how many lines changed. Runs on save, back to front so earlier
+    /// offsets stay valid, and as a single undo step so one `u` puts it all back.
+    pub fn trim_trailing_whitespace(&mut self) -> usize {
+        let before = self.cursor().head;
+        let mut trimmed = 0;
+
+        self.history.checkpoint();
+        for line in (0..self.document.len_lines()).rev() {
+            let text = self.document.line_string(line);
+            let kept = text.trim_end_matches([' ', '\t']).chars().count();
+            let length = text.chars().count();
+            if kept == length {
+                continue;
+            }
+            let start = self.document.line_start(line) + kept;
+            let removed = self.document.remove(start, start + (length - kept));
+            self.history.record(
+                Change::deletion(start, removed),
+                before,
+                self.document.char_to_pos(start),
+            );
+            trimmed += 1;
+        }
+
+        if trimmed > 0 {
+            self.invalidate_syntax_from(0);
+            self.clamp_cursors(true);
+            self.history.checkpoint();
+        }
+        trimmed
+    }
+
     /// Undo one step, moving the caret to where the edit started.
     ///
     /// Returns `false` when there is nothing left to undo.

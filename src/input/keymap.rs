@@ -14,7 +14,7 @@
 //! **Public API:** [`normal`], [`insert`], [`visual`], [`command`],
 //! [`pending`].
 
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::{Action, is_ctrl, is_plain};
 use crate::app::mode::Mode;
@@ -76,6 +76,15 @@ pub fn normal(key: KeyEvent, pending: &mut Option<char>) -> Action {
     }
     if let Some(motion) = motion(key) {
         return Action::Move(motion);
+    }
+    // Alt with an arrow drops a second cursor, the way most modeless editors do
+    // it — the modal alternative would need a prefix nobody would guess.
+    if key.modifiers.contains(KeyModifiers::ALT) {
+        return match key.code {
+            KeyCode::Down => Action::AddCursor { below: true },
+            KeyCode::Up => Action::AddCursor { below: false },
+            _ => Action::None,
+        };
     }
     if !is_plain(key.modifiers) {
         return Action::None;
