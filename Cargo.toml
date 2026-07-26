@@ -2,7 +2,10 @@
 name = "termi"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+# Edition 2024 alone needs 1.85, but the code uses let-chains, which only
+# stabilised in 1.88. Claiming 1.85 turns "your toolchain is too old" into a
+# confusing parse error.
+rust-version = "1.88"
 description = "A modern, modular terminal code editor written in Rust"
 license = "MIT"
 
