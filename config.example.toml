@@ -1,0 +1,39 @@
+# termi configuration
+#
+# Copy to <config-dir>/termi/config.toml and delete what you do not want to
+# change — every key is optional and falls back to the value shown here.
+#
+#   Linux    ~/.config/termi/config.toml
+#   macOS    ~/Library/Application Support/termi/config.toml
+#   Windows  %APPDATA%\termi\config.toml
+#
+# Set TERMI_CONFIG_DIR to override the location entirely.
+#
+# Unknown keys are an error rather than a silent no-op, so a typo is reported
+# in the command bar the next time termi starts.
+
+# "dark", "light", or the stem of a file in <config-dir>/termi/themes/.
+theme = "dark"
+
+# Indentation.
+tab_width = 4
+expand_tabs = true       # insert spaces rather than a tab character
+auto_indent = true       # carry indentation onto new lines, dedent on `}`
+
+# Gutter.
+line_numbers = true
+relative_line_numbers = false
+
+# Text area.
+word_wrap = false        # wrap long lines instead of scrolling sideways
+highlight_current_line = true
+scrolloff = 3            # lines of context kept above and below the cursor
+syntax_highlighting = true
+
+# Chrome.
+show_tabs = true         # tab strip, shown when more than one file is open
+
+# Behaviour.
+watch_files = true             # reload clean buffers changed on disk
+trim_trailing_whitespace = false
+system_clipboard = true        # false uses an internal register instead
