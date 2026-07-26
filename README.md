@@ -1,10 +1,25 @@
 # termi
 
+[![CI](https://github.com/tuna4ll/termi/actions/workflows/ci.yml/badge.svg)](https://github.com/tuna4ll/termi/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/termi.svg)](https://crates.io/crates/termi)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A modal terminal code editor written in Rust, built on [ratatui] and
 [crossterm]. Inspired by Helix and Kilo: modal like the first, small enough to
 read end to end like the second.
 
+## Install
+
+```sh
+cargo install termi
 ```
+
+Or grab a prebuilt binary from the [releases page][releases] — Linux (glibc and
+static musl), macOS (Intel and Apple silicon) and Windows.
+
+Building from source needs Rust 1.88 or newer:
+
+```sh
 cargo run --release -- src/main.rs
 ```
 
@@ -97,11 +112,15 @@ documents its purpose, its responsibility and its public API.
 
 ## Development
 
-```
+```sh
 cargo test
-cargo clippy --all-targets
-cargo fmt
+cargo clippy --all-targets -- -D warnings
+cargo fmt --all
 ```
+
+CI runs these plus the test suite on Linux, macOS and Windows and a build
+against the minimum supported Rust version. See [CONTRIBUTING.md] for what the
+code expects of a change.
 
 ## Roadmap
 
@@ -117,3 +136,5 @@ MIT
 [ratatui]: https://ratatui.rs
 [crossterm]: https://github.com/crossterm-rs/crossterm
 [ropey]: https://github.com/cessen/ropey
+[releases]: https://github.com/tuna4ll/termi/releases
+[CONTRIBUTING.md]: CONTRIBUTING.md
