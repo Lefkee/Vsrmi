@@ -6,8 +6,14 @@ edition = "2024"
 # stabilised in 1.88. Claiming 1.85 turns "your toolchain is too old" into a
 # confusing parse error.
 rust-version = "1.88"
-description = "A modern, modular terminal code editor written in Rust"
+description = "A modal terminal code editor written in Rust"
 license = "MIT"
+readme = "README.md"
+repository = "https://github.com/tuna4ll/termi"
+keywords = ["editor", "terminal", "tui", "text-editor", "modal"]
+categories = ["command-line-utilities", "text-editors"]
+# CI configuration is noise inside a published crate.
+exclude = [".github/", ".gitattributes"]
 
 [dependencies]
 # TUI rendering + terminal backend. `crossterm_0_29` pins ratatui's backend to the
