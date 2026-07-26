@@ -46,15 +46,6 @@ impl LineEnding {
         }
     }
 
-    /// The characters written to disk for this line ending.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Lf => "\n",
-            Self::Crlf => "\r\n",
-        }
-    }
-
     /// Short label for the status bar.
     #[must_use]
     pub const fn label(self) -> &'static str {
@@ -119,11 +110,6 @@ impl Document {
     #[must_use]
     pub fn path(&self) -> Option<&Path> {
         self.path.as_deref()
-    }
-
-    /// Replace the associated path, as done by `:w <name>`.
-    pub fn set_path(&mut self, path: PathBuf) {
-        self.path = Some(path);
     }
 
     /// The line ending this document will be written with.
@@ -283,13 +269,6 @@ impl Document {
         Position::new(line, index - self.text.line_to_char(line))
     }
 
-    /// The character at `pos`, or `None` at end of line or end of file.
-    #[must_use]
-    pub fn char_at(&self, pos: Position) -> Option<char> {
-        let line = pos.line.min(self.last_line());
-        (pos.col < self.line_len(line)).then(|| self.text.char(self.line_start(line) + pos.col))
-    }
-
     /// Pull a position back inside the document.
     ///
     /// `allow_eol` is `true` in insert mode, where the cursor legitimately sits
@@ -368,17 +347,6 @@ impl Document {
     #[must_use]
     pub const fn is_dirty(&self) -> bool {
         self.dirty
-    }
-
-    /// Mark the document as matching what is on disk.
-    pub fn mark_clean(&mut self) {
-        self.dirty = false;
-    }
-
-    /// Mark the document as changed without going through `insert`/`remove`,
-    /// used when undo restores text that differs from the saved revision.
-    pub fn mark_dirty(&mut self) {
-        self.dirty = true;
     }
 }
 

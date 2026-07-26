@@ -66,12 +66,6 @@ impl View {
         };
         self.top_line = top.min(last_line);
     }
-
-    /// The last line that is at least partially visible.
-    #[must_use]
-    pub const fn bottom_line(&self, height: usize) -> usize {
-        self.top_line + height.saturating_sub(1)
-    }
 }
 
 #[cfg(test)]

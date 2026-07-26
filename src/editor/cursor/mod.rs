@@ -69,12 +69,6 @@ impl Cursor {
         }
     }
 
-    /// Whether the cursor currently spans any text.
-    #[must_use]
-    pub fn has_selection(&self) -> bool {
-        self.head != self.anchor
-    }
-
     /// Drop the selection, leaving the caret where it is.
     pub fn collapse(&mut self) {
         self.anchor = self.head;
@@ -322,7 +316,7 @@ mod tests {
         let mut cursor = Cursor::at(Position::new(0, 1));
         cursor.apply(Motion::Right, &document, true, false);
         assert_eq!(cursor.anchor, Position::new(0, 1));
-        assert!(cursor.has_selection());
+        assert_ne!(cursor.head, cursor.anchor);
     }
 
     #[test]

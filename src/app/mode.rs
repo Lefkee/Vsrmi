@@ -72,12 +72,6 @@ impl Mode {
         matches!(self, Self::Search)
     }
 
-    /// Whether the bottom line is a prompt rather than a message area.
-    #[must_use]
-    pub const fn uses_prompt(self) -> bool {
-        matches!(self, Self::Command | Self::Search)
-    }
-
     /// In insert mode the cursor sits *between* characters, so it is drawn as a
     /// bar; every other mode selects a character and uses a block.
     #[must_use]

@@ -42,12 +42,6 @@ impl Clipboard {
         }
     }
 
-    /// Whether the system clipboard is in use, as opposed to the internal one.
-    #[must_use]
-    pub const fn uses_system(&self) -> bool {
-        self.system.is_some()
-    }
-
     /// Store `text`, remembering whether it covers whole lines.
     pub fn set(&mut self, text: String, line_wise: bool) {
         if let Some(system) = self.system.as_mut() {

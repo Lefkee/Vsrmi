@@ -139,18 +139,6 @@ impl DisplayLine {
         }
         rows
     }
-
-    /// Character index owning display column `column`.
-    ///
-    /// Used to turn a mouse click or a horizontal scroll offset back into a
-    /// text position.
-    #[must_use]
-    pub fn char_at_column(&self, column: usize) -> usize {
-        self.cells.get(column).map_or_else(
-            || self.char_columns.len().saturating_sub(1),
-            |cell| cell.char_index,
-        )
-    }
 }
 
 #[cfg(test)]
@@ -232,13 +220,5 @@ mod tests {
         for pair in rows.windows(2) {
             assert_eq!(pair[0].1, pair[1].0);
         }
-    }
-
-    #[test]
-    fn columns_map_back_to_characters() {
-        let line = DisplayLine::new("\tab", 4);
-        assert_eq!(line.char_at_column(0), 0);
-        assert_eq!(line.char_at_column(3), 0);
-        assert_eq!(line.char_at_column(4), 1);
     }
 }

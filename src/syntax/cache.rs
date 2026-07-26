@@ -57,12 +57,6 @@ impl HighlightCache {
         self.highlighter.map_or("plain", |h| h.language.name)
     }
 
-    /// Whether highlighting is available for this buffer.
-    #[must_use]
-    pub const fn is_enabled(&self) -> bool {
-        self.highlighter.is_some()
-    }
-
     /// Forget the state of every line after `line`.
     pub fn invalidate_from(&mut self, line: usize) {
         // The state line `line` *begins* in cannot be affected by an edit on

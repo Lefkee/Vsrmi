@@ -124,12 +124,6 @@ impl Config {
         Ok(config)
     }
 
-    /// One level of indentation as it will be inserted.
-    #[must_use]
-    pub fn indent_unit(&self) -> String {
-        crate::editor::document::indent::indent_unit(self.tab_width, self.expand_tabs)
-    }
-
     /// Fix up values that would break rendering if taken literally.
     ///
     /// A `tab_width` of zero would make column arithmetic divide by zero, and an
@@ -171,13 +165,5 @@ mod tests {
         let config = Config::parse("tab_width = 0\nscrolloff = 9999").expect("valid config");
         assert_eq!(config.tab_width, 1);
         assert_eq!(config.scrolloff, 32);
-    }
-
-    #[test]
-    fn indent_unit_follows_the_tab_settings() {
-        let spaces = Config::parse("tab_width = 3\nexpand_tabs = true").expect("valid config");
-        assert_eq!(spaces.indent_unit(), "   ");
-        let tabs = Config::parse("expand_tabs = false").expect("valid config");
-        assert_eq!(tabs.indent_unit(), "\t");
     }
 }

@@ -88,8 +88,6 @@ pub enum Action {
     TreeMove(isize),
     /// Open the selected file, or expand the selected directory.
     TreeActivate,
-    /// Dismiss the popup.
-    ClosePopup,
 
     /// Open the search prompt, searching forwards or backwards.
     SearchStart { forward: bool },
@@ -142,17 +140,6 @@ impl Input {
             self.pending = None;
         }
         action
-    }
-
-    /// Forget any half-typed sequence, as happens on Escape or a mode change.
-    pub fn reset(&mut self) {
-        self.pending = None;
-    }
-
-    /// Whether a multi-key sequence is waiting for its second key.
-    #[must_use]
-    pub const fn is_pending(&self) -> bool {
-        self.pending.is_some()
     }
 }
 

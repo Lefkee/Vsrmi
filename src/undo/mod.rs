@@ -190,18 +190,6 @@ impl History {
         self.open = false;
         Some(position)
     }
-
-    /// Whether there is anything to undo.
-    #[must_use]
-    pub fn can_undo(&self) -> bool {
-        !self.undo.is_empty()
-    }
-
-    /// Whether there is anything to redo.
-    #[must_use]
-    pub fn can_redo(&self) -> bool {
-        !self.redo.is_empty()
-    }
 }
 
 #[cfg(test)]
@@ -234,7 +222,7 @@ mod tests {
 
         history.undo(&mut document);
         assert_eq!(document.text().to_string(), "");
-        assert!(!history.can_undo());
+        assert!(history.undo(&mut document).is_none());
     }
 
     #[test]
@@ -258,7 +246,6 @@ mod tests {
         type_text(&mut history, &mut document, 0, "abc");
 
         history.undo(&mut document);
-        assert!(history.can_redo());
         history.redo(&mut document);
         assert_eq!(document.text().to_string(), "abc");
     }
@@ -271,7 +258,7 @@ mod tests {
         history.undo(&mut document);
 
         type_text(&mut history, &mut document, 0, "x");
-        assert!(!history.can_redo());
+        assert!(history.redo(&mut document).is_none());
     }
 
     #[test]

@@ -71,22 +71,10 @@ impl Range {
         self.start >= self.end
     }
 
-    /// Number of characters covered.
-    #[must_use]
-    pub const fn len(&self) -> usize {
-        self.end.saturating_sub(self.start)
-    }
-
     /// Whether `index` falls inside the range.
     #[must_use]
     pub const fn contains(&self, index: usize) -> bool {
         index >= self.start && index < self.end
-    }
-
-    /// Whether the range overlaps `[start, end)`.
-    #[must_use]
-    pub const fn overlaps(&self, start: usize, end: usize) -> bool {
-        self.start < end && start < self.end
     }
 }
 
@@ -116,7 +104,7 @@ mod tests {
     fn a_collapsed_cursor_still_covers_one_character() {
         let document = doc("abc");
         let range = Range::of(&cursor(Position::new(0, 1), Position::new(0, 1)), &document);
-        assert_eq!(range.len(), 1);
+        assert_eq!(range.end - range.start, 1);
         assert!(range.contains(1));
         assert!(!range.contains(2));
     }
@@ -140,13 +128,5 @@ mod tests {
         let document = doc("aaa\nbbb");
         let range = Range::of_lines(&cursor(Position::new(1, 0), Position::new(1, 2)), &document);
         assert_eq!(range, Range { start: 4, end: 7 });
-    }
-
-    #[test]
-    fn overlap_is_exclusive_at_the_edges() {
-        let range = Range { start: 4, end: 8 };
-        assert!(range.overlaps(7, 10));
-        assert!(!range.overlaps(8, 10));
-        assert!(!range.overlaps(0, 4));
     }
 }

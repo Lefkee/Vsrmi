@@ -92,12 +92,6 @@ impl Buffer {
         &self.cursors
     }
 
-    /// Whether more than one cursor is active.
-    #[must_use]
-    pub fn has_multiple_cursors(&self) -> bool {
-        self.cursors.len() > 1
-    }
-
     /// Move every cursor by the same motion.
     pub fn move_cursors(&mut self, motion: Motion, extend: bool, allow_eol: bool) {
         for cursor in &mut self.cursors {
@@ -146,11 +140,6 @@ impl Buffer {
         (0..self.cursors.len()).rev().collect()
     }
 
-    /// Mutable access to a cursor by index, used by multi-cursor edits.
-    pub fn cursor_at_mut(&mut self, index: usize) -> &mut Cursor {
-        &mut self.cursors[index]
-    }
-
     /// Pull every cursor back inside the document.
     ///
     /// Called after any edit that can shrink the text — undo, reload, deleting a
@@ -194,7 +183,6 @@ mod tests {
         let buf = buffer("abc");
         assert_eq!(buf.cursors().len(), 1);
         assert_eq!(buf.cursor().head, Position::ZERO);
-        assert!(!buf.has_multiple_cursors());
     }
 
     #[test]

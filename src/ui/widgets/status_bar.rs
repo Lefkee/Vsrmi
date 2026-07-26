@@ -82,12 +82,10 @@ impl Widget for StatusBar<'_> {
 
 impl StatusBar<'_> {
     /// How far through the file the caret is, as a percentage.
+    ///
+    /// A one-line file is "100%" rather than a division by zero.
     fn scroll_percentage(&self) -> usize {
         let last = self.line_count.saturating_sub(1);
-        if last == 0 {
-            100
-        } else {
-            self.position.line * 100 / last
-        }
+        (self.position.line * 100).checked_div(last).unwrap_or(100)
     }
 }
