@@ -72,4 +72,14 @@ pub static PYTHON: Language = Language {
         ),
     ],
     prose: false,
+    snippets: &[
+        ("im", "import "),
+        ("fr", "from "),
+        ("de", "def ():"),
+        ("cl", "class :"),
+        ("if", "if :"),
+        ("fo", "for i in :"),
+        ("wh", "while :"),
+        ("re", "return "),
+    ],
 };

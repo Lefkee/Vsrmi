@@ -59,11 +59,33 @@ pub fn apply(app: &mut App, action: Action) -> Result<()> {
             buffer.insert_newline(config);
         }
         Action::InsertIndent => {
+            if app.mode.is_insert()
+                && let Some(text) = crate::editor::snippet::active_snippet(app.buffer()) {
+                    app.buffer_mut().insert_text(&text);
+                    return Ok(());
+                }
             let (buffer, config) = app.buffer_and_config();
             buffer.insert_indent(config);
         }
         Action::DeleteBackward => {
             let (buffer, config) = app.buffer_and_config();
+
+            // When the cursor sits between a matched pair (e.g. `(|)`),
+            // delete both the opener and the closer in one Backspace.
+            if buffer.cursor().head.col > 0 {
+                let head = buffer.cursor().head;
+                let line = buffer.document.line_string(head.line);
+                let prev = line.chars().nth(head.col - 1);
+                let next = line.chars().nth(head.col);
+                if let (Some(p), Some(n)) = (prev, next)
+                    && matches!((p, n),
+                        ('(', ')') | ('[', ']') | ('{', '}') | ('"', '"') | ('\'' , '\''))
+                    {
+                        buffer.move_cursors(crate::editor::cursor::Motion::Right, false, true);
+                        buffer.delete_backward(config);
+                    }
+            }
+
             buffer.delete_backward(config);
         }
         Action::DeleteForward => app.buffer_mut().delete_forward(),
@@ -164,18 +186,47 @@ pub fn apply(app: &mut App, action: Action) -> Result<()> {
     Ok(())
 }
 
-/// Insert one typed character, re-indenting first when it closes a block.
+/// Insert one typed character, handling auto-indentation and pair matching.
 ///
-/// Typing `}` on an otherwise blank, indented line pulls the line back one level
-/// so the bracket lines up with its opener — the one piece of "smart" behaviour
-/// that a per-line editor can get right without a parser.
+/// * Openers `([{"'` insert the matching closer and leave the cursor between
+///   the two characters, so the next keystroke lands inside the pair.
+/// * Closers step over an existing identical character instead of inserting a
+///   duplicate — consistent with how VS Code and Helix behave.
+/// * `}` on an otherwise blank, indented line pulls the line back one level
+///   so the bracket aligns with its opener.
 fn insert_char(app: &mut App, ch: char) {
     let (buffer, config) = app.buffer_and_config();
     let head = buffer.cursor().head;
 
+    // Smart dedent: `}` on a blank indented line.
     if config.auto_indent && indent::should_dedent(&buffer.document, head.line, head.col, ch) {
         buffer.delete_backward(config);
     }
+
+    // Step over an existing closer instead of duplicating it.
+    if matches!(ch, ')' | ']' | '}' | '"' | '\'') {
+        let line = buffer.document.line_string(head.line);
+        if line.chars().nth(head.col) == Some(ch) {
+            buffer.move_cursors(crate::editor::cursor::Motion::Right, false, true);
+            return;
+        }
+    }
+
+    // Auto-close openers by inserting both halves, then stepping left.
+    let closer = match ch {
+        '(' => Some(')'),
+        '[' => Some(']'),
+        '{' => Some('}'),
+        '"' => Some('"'),
+        '\'' => Some('\''),
+        _ => None,
+    };
+    if let Some(c) = closer {
+        buffer.insert_text(&format!("{ch}{c}"));
+        buffer.move_cursors(crate::editor::cursor::Motion::Left, false, true);
+        return;
+    }
+
     buffer.insert_text(&ch.to_string());
 }
 

@@ -1,18 +1,18 @@
-# termi configuration
+# vsrmi configuration
 #
-# Copy to <config-dir>/termi/config.toml and delete what you do not want to
+# Copy to <config-dir>/vsrmi/config.toml and delete what you do not want to
 # change — every key is optional and falls back to the value shown here.
 #
-#   Linux    ~/.config/termi/config.toml
-#   macOS    ~/Library/Application Support/termi/config.toml
-#   Windows  %APPDATA%\termi\config.toml
+#   Linux    ~/.config/vsrmi/config.toml
+#   macOS    ~/Library/Application Support/vsrmi/config.toml
+#   Windows  %APPDATA%\vsrmi\config.toml
 #
-# Set TERMI_CONFIG_DIR to override the location entirely.
+# Set VSRMI_CONFIG_DIR to override the location entirely.
 #
 # Unknown keys are an error rather than a silent no-op, so a typo is reported
-# in the command bar the next time termi starts.
+# in the command bar the next time vsrmi starts.
 
-# "dark", "light", or the stem of a file in <config-dir>/termi/themes/.
+# "dark", "light", or the stem of a file in <config-dir>/vsrmi/themes/.
 theme = "dark"
 
 # Indentation.

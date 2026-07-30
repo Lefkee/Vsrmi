@@ -112,6 +112,8 @@ pub struct EditorView<'a> {
     pub search: Option<&'a Search>,
     /// The match the caret is sitting on, painted more strongly than the rest.
     pub active_match: Option<Range>,
+    /// Suggestion to show after the cursor.
+    pub ghost_text: Option<&'a str>,
 }
 
 impl EditorView<'_> {
@@ -271,6 +273,26 @@ impl EditorView<'_> {
                 // current-line highlight spans the full width.
                 None => {
                     cell.set_char(' ').set_style(base);
+                }
+            }
+        }
+
+        if let Some(ghost) = self.ghost_text
+            && line == caret
+        {
+            let ghost_col = display.column_of(self.buffer.cursor().head.col);
+            let ghost_style = base.patch(
+                self.theme.syntax.style_for(crate::syntax::HighlightKind::Comment),
+            );
+            if ghost_col >= left && ghost_col < left + usize::from(width) {
+                for (i, ch) in ghost.chars().enumerate() {
+                    let c = ghost_col - left + i;
+                    if c >= usize::from(width) {
+                        break;
+                    }
+                    if let Some(cell) = surface.cell_mut((x0 + u16::try_from(c).unwrap(), y)) {
+                        cell.set_char(ch).set_style(ghost_style);
+                    }
                 }
             }
         }

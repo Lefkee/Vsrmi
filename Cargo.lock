@@ -3,6 +3,24 @@
 version = 4
 
 [[package]]
+name = "Vsrmi"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "arboard",
+ "crossterm",
+ "dirs",
+ "notify",
+ "ratatui",
+ "regex",
+ "ropey",
+ "serde",
+ "toml",
+ "unicode-segmentation",
+ "unicode-width",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1582,24 +1600,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "termi"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "arboard",
- "crossterm",
- "dirs",
- "notify",
- "ratatui",
- "regex",
- "ropey",
- "serde",
- "toml",
- "unicode-segmentation",
- "unicode-width",
 ]
 
 [[package]]

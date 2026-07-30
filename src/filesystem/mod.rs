@@ -51,7 +51,7 @@ pub fn write_file(path: &Path, contents: &str) -> Result<()> {
 /// cross a filesystem boundary and stop being atomic.
 fn temp_path(path: &Path) -> std::path::PathBuf {
     let mut name = std::ffi::OsString::from(".");
-    name.push(path.file_name().unwrap_or_else(|| "termi".as_ref()));
-    name.push(".termi-tmp");
+    name.push(path.file_name().unwrap_or_else(|| "vsrmi".as_ref()));
+    name.push(".vsrmi-tmp");
     path.with_file_name(name)
 }

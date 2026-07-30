@@ -1,78 +1,212 @@
-# termi
+# Vsrmi
 
-[![CI](https://github.com/tuna4ll/termi/actions/workflows/ci.yml/badge.svg)](https://github.com/tuna4ll/termi/actions/workflows/ci.yml)
-[![crates.io](https://img.shields.io/crates/v/termi.svg)](https://crates.io/crates/termi)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Rust: 1.88+](https://img.shields.io/badge/rust-1.88%2B-orange.svg)](https://www.rust-lang.org)
 
-A modal terminal code editor written in Rust, built on [ratatui] and
-[crossterm]. Inspired by Helix and Kilo: modal like the first, small enough to
-read end to end like the second.
+> **Vsrmi** — VS Code benzeri akıllı tamamlama ve otomatik parantez kapatma ile donatılmış, terminal içinde çalışan modal kod editörü.  
+> [Termi] projesinden çatallanmıştır. Rust, [ratatui] ve [crossterm] ile inşa edilmiştir.
 
-## Install
+---
 
-```sh
-cargo install termi
-```
+## ✨ Özellikler
 
-Or grab a prebuilt binary from the [releases page][releases] — Linux (glibc and
-static musl), macOS (Intel and Apple silicon) and Windows.
-
-Building from source needs Rust 1.88 or newer:
-
-```sh
-cargo run --release -- src/main.rs
-```
-
-## What it does
-
-**Text** — UTF-8 throughout, a [ropey] rope underneath, so editing a large file
-costs the same as editing a small one. Tabs, wide glyphs and mixed line endings
-are handled at the edges: everything in between works in plain character
-indices.
-
-**Modal editing** — normal, insert, visual, visual-line, command and search
-modes. `hjkl` and word motions, `dd`/`yy`/`p`, undo and redo with typing merged
-into sensible steps, and multiple cursors (`Alt+↑` / `Alt+↓`) as a first-class
-part of the editing core rather than a bolted-on mode.
-
-**Search** — incremental, literal or regex, smart case, with matches highlighted
-as you type and `:%s/a/b/g` for replacement.
-
-**Syntax highlighting** — regex based, for Rust, C, C++, Zig, Python and
-Markdown. Block-comment state is cached per line, so scrolling deep into a file
-does not rescan it.
-
-**Files** — multiple buffers with a tab strip, a lazily expanded file tree
-(`Ctrl+B`), atomic saves, and a watcher that reloads clean buffers when they
-change on disk and warns rather than clobbers when they do not.
-
-**Looks** — dark and light themes built in, plus TOML themes that override only
-the slots you care about.
-
-## Keys
-
-Press `:help` inside the editor for the same list.
-
-| | |
+| Özellik | Açıklama |
 |---|---|
-| `i` `a` `I` `A` `o` `O` | enter insert mode |
-| `v` `V` | character-wise / line-wise visual mode |
-| `h j k l` `w b e` `0 ^ $` `gg G` | motions |
-| `x` `dd` `yy` `p` `u` `Ctrl+R` | delete, yank, paste, undo, redo |
-| `/` `?` `n` `N` | search forwards, backwards, repeat |
-| `Alt+↑` `Alt+↓` `Esc` | add a cursor above/below, collapse to one |
-| `Ctrl+B` | file tree |
-| `Ctrl+N` `Ctrl+P` | next / previous buffer |
-| `Ctrl+S` `Ctrl+Q` | save, quit |
-| `:` | command line |
+| 🔤 **Modal Düzenleme** | Normal / Insert / Visual / Command modları, vi-tarzı hareketler |
+| 🔍 **Arama** | Artımlı, literal veya regex, akıllı büyük/küçük harf |
+| 🎨 **Sözdizimi Vurgulama** | Rust, C, C++, Zig, Python, Markdown |
+| 💡 **Akıllı Tamamlama** | Ghost-text; keyword, type, constant ve yerel kelime tahmini |
+| 🔒 **Otomatik Çift Kapatma** | `()` `[]` `{}` `""` `''` otomatik kapanır, Backspace ikisini siler |
+| 📁 **Çoklu Buffer** | Sekme şeridi, dosya ağacı (`Ctrl+B`), atomik kayıt |
+| 🎭 **Temalar** | Yerleşik koyu/açık + TOML ile özelleştirme |
 
-Commands: `:w [path]` `:q[!]` `:wq` `:e[!] path` `:bn` `:bp` `:<line>`
-`:set <option> [value]` `:theme <name>` `:%s/pattern/replacement/g`
+---
 
-## Configuration
+## 📦 Kurulum
 
-See [`config.example.toml`](config.example.toml). Themes go in
-`<config-dir>/termi/themes/<name>.toml` and layer over a built-in base:
+### Gereksinimler
+
+- **Rust ≥ 1.88** — [rustup.rs](https://rustup.rs) üzerinden kurabilirsiniz:
+
+```sh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+rustc --version   # rustc 1.88.x veya üzeri olmalı
+```
+
+> **Not:** Özel bir font gerekmez. Vsrmi yalnızca standart Unicode blok karakterleri kullanır — her modern terminal emülatöründe çalışır.
+
+---
+
+### Yöntem 1 — Git'ten Doğrudan Kur
+
+```sh
+cargo install --git https://github.com/Lefkee/Vsrmi vsrmi
+```
+
+Derleme tamamlandığında `vsrmi` komutu `~/.cargo/bin/` altına kurulur ve hemen kullanılabilir hale gelir.
+
+---
+
+### Yöntem 2 — Kaynak Koddan Derle
+
+```sh
+# 1. Depoyu klonla
+git clone https://github.com/Lefkee/Vsrmi
+cd Vsrmi
+
+# 2. Optimizasyonlu derle
+cargo build --release
+
+# 3. Çalıştır
+./target/release/vsrmi dosyaadi.py
+```
+
+**Sisteme kalıcı olarak eklemek için:**
+
+```sh
+# Kopyalama yöntemi:
+sudo cp target/release/vsrmi /usr/local/bin/vsrmi
+
+# veya Cargo ile:
+cargo install --path .
+```
+
+---
+
+### Dil Desteği
+
+Vsrmi, dosya uzantısından dili otomatik algılar:
+
+| Uzantı | Dil |
+|---|---|
+| `.rs` | Rust |
+| `.c` `.h` | C |
+| `.cpp` `.hpp` `.cc` | C++ |
+| `.zig` | Zig |
+| `.py` | Python |
+| `.md` | Markdown |
+
+```sh
+vsrmi main.py        # Python modu ile açar
+vsrmi src/main.rs    # Rust modu ile açar
+```
+
+---
+
+## 🖥️ Arayüz
+
+### Status Bar
+
+Ekranın altındaki durum çubuğu soldan sağa şu bilgileri gösterir:
+
+```
+◆ NORMAL ▌ dosyaadi.py ●        python  LF  Ln 12 Col 8  ▅42%
+```
+
+| Gösterge | Açıklama |
+|---|---|
+| `◆ NORMAL` | Aktif mod — rengi moda göre değişir |
+| `▌` | Mod/dosya adı ayracı |
+| `●` | Kaydedilmemiş değişiklik |
+| `▁▃▅▆▇█` | Dosyadaki kaydırma konumu (%) |
+
+**Mod renkleri:**
+
+| Mod | Gösterge | Renk |
+|---|---|---|
+| Normal | `◆ NORMAL` | Mavi |
+| Insert | `▶ INSERT` | Yeşil |
+| Visual | `▪ VISUAL` | Mor |
+| Command | `: COMMAND` | Şeftali |
+| Search | `/ SEARCH` | Sarı |
+| Tree | `⊞ TREE` | Gök mavisi |
+
+### Dosya Ağacı (`Ctrl+B`)
+
+Dosya ağacında uzantı etiketleri gösterilir:
+
+| Etiket | Uzantı |
+|---|---|
+| `[rs]` | Rust |
+| `[py]` | Python |
+| `[md]` | Markdown |
+| `[c+]` | C++ |
+| `[cf]` | TOML/YAML |
+| `[sh]` | Shell |
+
+---
+
+## ⌨️ Tuş Referansı
+
+> Editörün içinde `:help` yazarak tam listeye ulaşabilirsiniz.
+
+### Modlar
+
+| Tuş | İşlev |
+|---|---|
+| `i` `a` `I` `A` `o` `O` | Insert moduna gir |
+| `v` `V` | Karakter / satır Visual modu |
+| `Esc` | Normal moda dön, çoklu imleci kapat |
+
+### Hareketler
+
+| Tuş | İşlev |
+|---|---|
+| `h j k l` | Sol / Aşağı / Yukarı / Sağ |
+| `w b e` | Kelime ileri / geri / sonu |
+| `0` `^` `$` | Satır başı / ilk karakter / sonu |
+| `gg` `G` | Dosya başı / sonu |
+
+### Düzenleme
+
+| Tuş | İşlev |
+|---|---|
+| `x` | Karakter sil |
+| `dd` `yy` `p` | Satır sil / kopyala / yapıştır |
+| `u` `Ctrl+R` | Geri al / yeniden yap |
+| `Tab` *(Insert modda)* | Otomatik tamamlamayı kabul et |
+| `Alt+↑` `Alt+↓` | Çoklu imleç ekle |
+
+### Dosya & Navigasyon
+
+| Tuş | İşlev |
+|---|---|
+| `Ctrl+S` | Kaydet |
+| `Ctrl+Q` | Çık |
+| `Ctrl+B` | Dosya ağacını aç/kapat |
+| `Ctrl+N` `Ctrl+P` | Sonraki / önceki buffer |
+| `/` `?` `n` `N` | İleri / geri ara, tekrarla |
+
+### Komut Satırı
+
+```
+:w [yol]           kaydet
+:q[!]              çık (! ile kaydetmeden)
+:wq                kaydet ve çık
+:e[!] yol          dosya aç (! ile kaydetmeden)
+:bn / :bp          sonraki / önceki buffer
+:<satır>           satıra atla
+:set <ayar>        ayar değiştir
+:theme <isim>      tema değiştir
+:%s/desen/yeni/g   toplu değiştir
+```
+
+---
+
+## ⚙️ Yapılandırma
+
+Yapılandırma dosyasını ilgili konuma kopyalayın:
+
+| Platform | Konum |
+|---|---|
+| Linux | `~/.config/vsrmi/config.toml` |
+| macOS | `~/Library/Application Support/vsrmi/config.toml` |
+| Windows | `%APPDATA%\vsrmi\config.toml` |
+
+`VSRMI_CONFIG_DIR` ortam değişkeni bu konumu tamamen geçersiz kılar.
+
+Başlangıç noktası olarak [`config.example.toml`](config.example.toml) dosyasını kullanın. Temalar `<config-dir>/vsrmi/themes/<isim>.toml` konumuna yerleştirilir:
 
 ```toml
 name = "midnight"
@@ -86,55 +220,47 @@ italic = true
 bg = "bright-blue"
 ```
 
-## Architecture
+---
 
-Layers depend downwards only:
+## 🏗️ Mimari
+
+Katmanlar yalnızca aşağıya bağımlıdır:
 
 ```
-app/         event loop, state, action dispatch, ex commands
-├── ui/      layout and widgets; renderer/ owns the terminal
-├── input/   keys → actions
-└── editor/  text, with no knowledge of terminals
-    ├── document/   rope, file, dirty state, indentation
-    ├── cursor/     positions, motions, word boundaries
-    ├── selection/  character ranges
-    ├── buffer/     document + cursors + viewport + history
-    └── command/    ex-command parsing
+app/           olay döngüsü, durum, aksiyon dispatch, ex komutları
+├── ui/        düzen ve widget'lar; renderer/ terminale sahip
+├── input/     tuşlar → aksiyonlar
+└── editor/    metin; terminal bilgisi yok
+    ├── document/  rope, dosya, kirli durum, girinti
+    ├── cursor/    pozisyonlar, hareketler, kelime sınırları
+    ├── selection/ karakter aralıkları
+    ├── buffer/    belge + imleçler + görüntü + geçmiş
+    └── command/   ex-komut ayrıştırma
 
 config/  theme/  syntax/  search/  undo/  clipboard/  filesystem/
 ```
 
-The editor core is UI-free and the UI layer is read-only, so a render pass is a
-pure function of the state plus the terminal size. Every module's header
-documents its purpose, its responsibility and its public API.
+`unsafe_code` tüm crate genelinde yasaktır.
 
-`unsafe_code` is forbidden crate-wide.
+---
 
-## Development
+## 🔧 Geliştirme
 
 ```sh
-cargo test
-cargo clippy --all-targets -- -D warnings
-cargo fmt --all
+cargo test                                  # birim testleri
+cargo clippy --all-targets -- -D warnings  # lint
+cargo fmt --all                             # formatlama
 ```
 
-CI runs these plus the test suite on Linux, macOS and Windows and a build
-against the minimum supported Rust version. See [CONTRIBUTING.md] for what the
-code expects of a change.
+---
 
-## Roadmap
+## 📄 Lisans
 
-Syntax highlighting is deliberately regex based for now. The next step is
-tree-sitter behind the same `Highlight` span interface, which the renderer and
-themes already consume — no changes above the `syntax` module. Mouse support is
-also intentionally deferred.
-
-## License
-
-MIT
+MIT — Ayrıntılar için [LICENSE](LICENSE) dosyasına bakın.
 
 [ratatui]: https://ratatui.rs
 [crossterm]: https://github.com/crossterm-rs/crossterm
-[ropey]: https://github.com/cessen/ropey
-[releases]: https://github.com/tuna4ll/termi/releases
+[Termi]: https://github.com/tuna4ll/termi
+[releases]: https://github.com/Lefkee/Vsrmi/releases
 [CONTRIBUTING.md]: CONTRIBUTING.md
+

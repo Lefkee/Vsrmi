@@ -140,7 +140,7 @@ mod tests {
 
     /// Build a small directory layout under the system temp directory.
     fn fixture(name: &str) -> PathBuf {
-        let root = std::env::temp_dir().join(format!("termi-tree-{name}"));
+        let root = std::env::temp_dir().join(format!("vsrmi-tree-{name}"));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(root.join("src")).expect("create fixture");
         std::fs::create_dir_all(root.join(".hidden")).expect("create fixture");

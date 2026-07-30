@@ -112,6 +112,8 @@ pub struct Language {
     /// Prose languages such as Markdown want only their own rules; running the
     /// code-oriented ones over prose produces noise.
     pub prose: bool,
+    /// Language-specific snippets in the form of `(trigger, text_to_insert)`.
+    pub snippets: &'static [(&'static str, &'static str)],
 }
 
 /// Every language the editor knows, compiled on first use.

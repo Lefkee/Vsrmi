@@ -18,16 +18,16 @@ use serde::Deserialize;
 
 /// Directory holding `config.toml` and `themes/`.
 ///
-/// `TERMI_CONFIG_DIR` overrides the platform default, which keeps tests and
+/// `VSRMI_CONFIG_DIR` overrides the platform default, which keeps tests and
 /// portable installs from touching the real user configuration.
 #[must_use]
 pub fn config_dir() -> PathBuf {
-    if let Some(dir) = std::env::var_os("TERMI_CONFIG_DIR") {
+    if let Some(dir) = std::env::var_os("VSRMI_CONFIG_DIR") {
         return PathBuf::from(dir);
     }
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("termi")
+        .join("vsrmi")
 }
 
 /// Directory searched for custom theme files.

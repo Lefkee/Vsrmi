@@ -33,8 +33,9 @@ pub enum Mode {
 }
 
 impl Mode {
-    /// Short uppercase label shown in the status bar.
+    /// Short uppercase label shown in the status bar or external tools.
     #[must_use]
+    #[allow(dead_code)]
     pub const fn name(self) -> &'static str {
         match self {
             Self::Normal => "NORMAL",

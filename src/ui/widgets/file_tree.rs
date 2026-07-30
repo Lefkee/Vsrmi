@@ -3,9 +3,9 @@
 //! **Purpose:** the side panel listing the project's files.
 //!
 //! **Responsibility:** draw a flattened [`Tree`](crate::filesystem::tree::Tree)
-//! with indentation, folder markers and a selection highlight, scrolled so the
-//! selected row stays visible. The tree itself decides what is expanded; this
-//! widget only draws it.
+//! with indentation, folder markers, file-type icons and a selection highlight,
+//! scrolled so the selected row stays visible. The tree itself decides what is
+//! expanded; this widget only draws it.
 //!
 //! **Public API:** [`FileTree`].
 
@@ -40,14 +40,47 @@ impl FileTree<'_> {
         self.selected - height + 1
     }
 
-    /// Indentation, folder marker and name for one row.
+    /// Icon, indentation and name for one entry.
+    ///
+    /// Folders get arrow icons that reflect their open/closed state. Files get
+    /// a small icon chosen from a compact set keyed on the extension.
     fn label(entry: &Entry) -> String {
-        let marker = if entry.is_dir {
-            if entry.is_open { "▾ " } else { "▸ " }
+        let indent = "  ".repeat(entry.depth);
+        if entry.is_dir {
+            let arrow = if entry.is_open { "▾ " } else { "▸ " };
+            format!("{indent} {arrow}{}", entry.name)
         } else {
-            "  "
-        };
-        format!("{}{marker}{}", "  ".repeat(entry.depth), entry.name)
+            let icon = file_icon(&entry.name);
+            format!("{indent}  {icon} {}", entry.name)
+        }
+    }
+}
+
+/// Pick a short text label for a filename extension.
+///
+/// Falls back to a generic marker for unrecognised extensions.
+fn file_icon(name: &str) -> &'static str {
+    let ext = name.rsplit('.').next().unwrap_or("");
+    match ext {
+        "rs"                               => "[rs]",
+        "py"                               => "[py]",
+        "js" | "mjs"                       => "[js]",
+        "ts"                               => "[ts]",
+        "html" | "htm"                     => "[ht]",
+        "css"                              => "[cs]",
+        "json"                             => "[js]",
+        "toml" | "yaml" | "yml"            => "[cf]",
+        "md" | "markdown"                  => "[md]",
+        "c" | "h"                          => "[c] ",
+        "cpp" | "cc" | "cxx" | "hpp"       => "[c+]",
+        "zig"                              => "[zg]",
+        "go"                               => "[go]",
+        "sh" | "bash" | "zsh"             => "[sh]",
+        "txt"                              => "[tx]",
+        "lock"                             => "[lk]",
+        "git" | "gitignore"                => "[gi]",
+        "png" | "jpg" | "jpeg" | "gif" | "svg" | "webp" => "[im]",
+        _                                  => "[  ]",
     }
 }
 
@@ -56,16 +89,20 @@ impl Widget for FileTree<'_> {
         if area.is_empty() {
             return;
         }
+
         let border_style = if self.focused {
             self.theme.popup_border
         } else {
             self.theme.gutter
         };
+
+        // Show root directory name in the title.
+        let title_text = format!(" ▤ {}", self.title);
         let block = Block::default()
             .borders(Borders::RIGHT)
             .border_type(BorderType::Plain)
             .border_style(border_style)
-            .title(Span::styled(self.title, self.theme.tree_directory));
+            .title(Span::styled(title_text, self.theme.tree_directory));
 
         let inner = block.inner(area);
         surface.set_style(area, self.theme.text);
@@ -90,13 +127,10 @@ impl Widget for FileTree<'_> {
             }
 
             let y = inner.y + u16::try_from(row).unwrap_or(u16::MAX);
-            let line = Rect {
-                y,
-                height: 1,
-                ..inner
-            };
-            // Painting the row first makes the selection span the full width
-            // rather than stopping at the end of the name.
+            let line = Rect { y, height: 1, ..inner };
+
+            // Paint the full row before drawing the text so the selection
+            // highlight fills the entire width.
             surface.set_style(line, style);
             Line::from(Span::styled(Self::label(entry), style)).render(line, surface);
         }

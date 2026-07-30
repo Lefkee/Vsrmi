@@ -1,15 +1,16 @@
 [package]
-name = "termi"
-version = "0.1.0"
+name = "Vsrmi"
+version = "0.0.1"
 edition = "2024"
-# Edition 2024 alone needs 1.85, but the code uses let-chains, which only
+# Edition 2026 alone needs 1.85, but the code uses let-chains, which only
 # stabilised in 1.88. Claiming 1.85 turns "your toolchain is too old" into a
 # confusing parse error.
 rust-version = "1.88"
 description = "A modal terminal code editor written in Rust"
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/tuna4ll/termi"
+homepage = "https://github.com/Lefkee/Vsrmi"
+repository = "https://github.com/Lefkee/Vsrmi"
 keywords = ["editor", "terminal", "tui", "text-editor", "modal"]
 categories = ["command-line-utilities", "text-editors"]
 # CI configuration is noise inside a published crate.

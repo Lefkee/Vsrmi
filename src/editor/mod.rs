@@ -17,3 +17,4 @@ pub mod command;
 pub mod cursor;
 pub mod document;
 pub mod selection;
+pub mod snippet;

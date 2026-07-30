@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Autocomplete Snippets** — intelligent ghost-text autocomplete that predicts keywords, data types, and constants.
+- **Local Word Completion** — the snippet engine also scans the current buffer (up to 1000 lines around the cursor) for words starting with your current prefix and suggests them.
+- **Auto-closing Pairs** — typing brackets `()`, `[]`, `{}` or quotes `""`, `''` automatically inserts the closing pair, places the cursor in between, intelligently steps over existing closing characters, and deletes both when backspacing an empty pair.
+
 ## [0.1.0] - 2026-07-26
 
 First release.

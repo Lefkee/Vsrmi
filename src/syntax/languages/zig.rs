@@ -112,4 +112,18 @@ pub static ZIG: Language = Language {
         (r"\\\\.*", HighlightKind::String),
     ],
     prose: false,
+    snippets: &[
+        ("fn", "fn () "),
+        ("pu", "pub "),
+        ("co", "const "),
+        ("va", "var "),
+        ("st", "struct {}"),
+        ("en", "enum {}"),
+        ("er", "error {}"),
+        ("sw", "switch () {}"),
+        ("if", "if () {}"),
+        ("wh", "while () {}"),
+        ("fo", "for () |item| {}"),
+        ("re", "return "),
+    ],
 };

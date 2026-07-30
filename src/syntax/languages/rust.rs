@@ -43,4 +43,18 @@ pub static RUST: Language = Language {
         (r"'(?:static|_|[a-z][a-z0-9_]*)", HighlightKind::Type),
     ],
     prose: false,
+    snippets: &[
+        ("fn", "fn () {}"),
+        ("pu", "pub "),
+        ("le", "let "),
+        ("mu", "mut "),
+        ("ma", "match  {}"),
+        ("im", "impl  {}"),
+        ("tr", "trait  {}"),
+        ("st", "struct {}"),
+        ("en", "enum {}"),
+        ("fo", "for i in  {}"),
+        ("if", "if  {}"),
+        ("re", "return "),
+    ],
 };

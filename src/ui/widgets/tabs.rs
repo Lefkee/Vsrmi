@@ -11,6 +11,7 @@
 
 use ratatui::buffer::Buffer as Surface;
 use ratatui::layout::Rect;
+use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Widget;
 use unicode_width::UnicodeWidthStr;
@@ -37,12 +38,14 @@ pub struct TabBar<'a> {
 }
 
 impl TabBar<'_> {
-    /// Label for one tab, including padding and the unsaved marker.
-    fn label(tab: Tab<'_>) -> String {
+    /// Label for one tab: [indicator] name [dirty mark]
+    fn label(tab: Tab<'_>, active: bool) -> String {
+        // Active tab gets a filled triangle, inactive gets a small bullet.
+        let icon = if active { " ▸ " } else { "  ▪ " };
         if tab.dirty {
-            format!(" {} ● ", tab.name)
+            format!("{icon}{} ●  ", tab.name)
         } else {
-            format!(" {} ", tab.name)
+            format!("{icon}{}  ", tab.name)
         }
     }
 
@@ -53,7 +56,7 @@ impl TabBar<'_> {
         let mut used = 0;
         let mut first = self.active;
         for index in (0..=self.active).rev() {
-            let needed = Self::label(self.tabs[index]).width();
+            let needed = Self::label(self.tabs[index], index == self.active).width();
             if used + needed > width && index != self.active {
                 break;
             }
@@ -69,21 +72,33 @@ impl Widget for TabBar<'_> {
         if area.is_empty() || self.tabs.is_empty() {
             return;
         }
+        // Background for the whole strip.
         surface.set_style(area, self.theme.tab_inactive);
 
         let first = self.first_visible(area.width as usize);
-        let spans: Vec<Span<'_>> = self.tabs[first..]
-            .iter()
-            .enumerate()
-            .map(|(offset, tab)| {
-                let style = if first + offset == self.active {
-                    self.theme.tab_active
-                } else {
-                    self.theme.tab_inactive
-                };
-                Span::styled(Self::label(*tab), style)
-            })
-            .collect();
+        let mut spans: Vec<Span<'_>> = Vec::new();
+
+        for (offset, tab) in self.tabs[first..].iter().enumerate() {
+            let idx = first + offset;
+            let is_active = idx == self.active;
+
+            if is_active {
+                let style = self.theme.tab_active;
+                let label = Self::label(*tab, true);
+                spans.push(Span::styled(label, style));
+                // Block-style separator after active tab.
+                let sep_style = self.theme.tab_active
+                    .bg(self.theme.tab_inactive.bg.unwrap_or_default())
+                    .fg(self.theme.tab_active.bg.unwrap_or_default())
+                    .remove_modifier(Modifier::BOLD);
+                spans.push(Span::styled("▌", sep_style));
+            } else {
+                spans.push(Span::styled(
+                    Self::label(*tab, false),
+                    self.theme.tab_inactive,
+                ));
+            }
+        }
 
         Line::from(spans).render(area, surface);
     }

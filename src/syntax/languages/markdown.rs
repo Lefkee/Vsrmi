@@ -38,4 +38,5 @@ pub static MARKDOWN: Language = Language {
         (r"^\s*(?:[-*+])\s\[[ xX]\]", HighlightKind::Constant),
     ],
     prose: true,
+    snippets: &[],
 };
