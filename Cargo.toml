@@ -31,12 +31,12 @@ regex = "1.13"
 # Configuration and theming.
 serde = { version = "1", features = ["derive"] }
 toml = "1.1"
-dirs = "6"
+dirs = "7"
 
 # Platform integrations.
 # `default-features = false` drops image-data support (and the `image` crate with
 # it) — an editor only ever puts text on the clipboard.
-arboard = { version = "3.6", default-features = false }
+arboard = { version = "3.7", default-features = false }
 notify = "8"
 
 # Terminal cell width for CJK / wide graphemes.
