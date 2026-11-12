@@ -317,6 +317,16 @@ const NUMBER: &str = r"\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|\d[\d_]*
 mod tests {
     use super::*;
     use crate::syntax::by_name;
+    use std::path::Path;
+
+    fn kind_at(language: &str, line: &str, char_index: usize) -> Option<HighlightKind> {
+        let highlighter = by_name(language).expect("known language");
+        let (spans, _) = highlighter.highlight_line(line, BlockState::Normal);
+        spans
+            .iter()
+            .find(|span| span.start <= char_index && char_index < span.end)
+            .map(|span| span.kind)
+    }
 
     /// Render a line as a string of one letter per character, so an expected
     /// highlighting can be written down and compared at a glance.
@@ -449,5 +459,27 @@ mod tests {
         let (spans, _) = highlighter.highlight_line("// ağaç", BlockState::Normal);
         assert_eq!(spans[0].start, 0);
         assert_eq!(spans[0].end, 7);
+    }
+
+    #[test]
+    fn toml_tables_keys_strings_and_comments() {
+        assert_eq!(
+            kind_at("toml", "[package]", 1),
+            Some(HighlightKind::Heading)
+        );
+
+        let line = "name = \"vsrmi\" # note";
+        assert_eq!(kind_at("toml", line, 1), Some(HighlightKind::Attribute));
+        assert_eq!(kind_at("toml", line, 8), Some(HighlightKind::String));
+        assert_eq!(kind_at("toml", line, 15), Some(HighlightKind::Comment));
+
+        assert_eq!(
+            kind_at("toml", "url = 'https://example.com'", 7),
+            Some(HighlightKind::String)
+        );
+        assert_eq!(
+            crate::syntax::detect(Path::new("Cargo.lock")).map(|h| h.language.name),
+            Some("toml")
+        );
     }
 }
