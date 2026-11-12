@@ -1,13 +1,17 @@
-//! # Status Bar (Durum Çubuğu)
+//! # Status bar
 //!
-//! **Amacımız:** Kullanıcıya o an hangi dosyada olduğunu ve dosyanın ne durumda olduğunu şipşak göstermek.
+//! **Purpose:** show what file is open and what state it is in.
 //!
-//! **Ne İş Yapar?:** Ekranın en altındaki o tek satırlık çubuktur. Sol tarafta (aktif mod, dosya adı,
-//! kaydedilmemiş değişiklik uyarısı) ve sağ tarafta (dil, imleç konumu, satır sonu tipi,
-//! sayfayı ne kadar kaydırdığımızın yüzdesi) gibi bilgileri barındırır. Her modun kendine has
-//! tatlı bir vurgu rengi vardır, böylece editörün hangi modda olduğunu ta uzaklardan bile bir bakışta anlayabilirsiniz.
+//! **Responsibility:** one line at the bottom of the screen. The left side
+//! carries the active mode, the file name and the dirty marker; the right side
+//! carries the language, line ending, cursor position and scroll percentage.
+//! Each mode gets its own accent colour so the current state is readable at a
+//! glance.
 //!
-//! **Dışarıya Açık Yapılar:** [`StatusBar`].
+//! The right side is dropped rather than truncated when it would collide with
+//! the file name on a narrow terminal.
+//!
+//! **Public API:** [`StatusBar`].
 
 use ratatui::buffer::Buffer as Surface;
 use ratatui::layout::Rect;
@@ -20,31 +24,30 @@ use crate::editor::cursor::Position;
 use crate::editor::document::LineEnding;
 use crate::theme::Theme;
 
-/// Metin alanının en altındaki bilgi çubuğumuzu temsil eden yapı.
+/// The one-line information bar at the bottom of the text area.
 pub struct StatusBar<'a> {
-    /// O an bulunduğumuz mod (renkli ve dikkat çekici bir etiket olarak gösterilir).
+    /// Current mode, shown as a coloured label.
     pub mode: Mode,
-    /// Üzerinde çalıştığımız dosyanın adı. Eğer henüz kaydedilmemiş bir dosyadaysak `[No Name]` yazar.
+    /// Name of the focused file, or `[No Name]` for an unnamed buffer.
     pub name: &'a str,
-    /// Dosyada henüz kaydetmediğimiz taze değişiklikler var mı?
+    /// Whether the buffer has unsaved changes.
     pub dirty: bool,
-    /// Dosyanın otomatik algılanan dili (bulunamazsa `plain` olur).
+    /// Detected language, or `plain` when none applies.
     pub language: &'a str,
-    /// Ana imlecimizin anlık konumu.
+    /// Position of the primary cursor.
     pub position: Position,
-    /// Scroll (kaydırma) yüzdesini hesaplayabilmek için dosyadaki toplam satır sayısı.
+    /// Total line count, used for the scroll percentage.
     pub line_count: usize,
-    /// Dosyayı kaydederken kullanılacak satır sonu karakteri (LF veya CRLF).
+    /// Line ending the document will be saved with.
     pub line_ending: LineEnding,
-    /// Ekrandaki aktif imleç sayısı. (Eğer birden fazla imleç varsa gösterilir, tekse gizlenir).
+    /// Number of active cursors; only shown when there is more than one.
     pub cursor_count: usize,
-    /// Arayüzümüzün renk ve tema ayarları.
+    /// Colours.
     pub theme: &'a Theme,
 }
 
 impl StatusBar<'_> {
-    /// Her moda özel vurgu rengini belirliyoruz ki, mod etiketimiz o anki duruma göre
-    /// farklı ve tatlı renklerle parlasın.
+    /// Accent colour for the current mode.
     fn mode_style(&self) -> Style {
         let bg = match self.mode {
             Mode::Normal => Color::Rgb(0x89, 0xb4, 0xfa), // blue
@@ -60,7 +63,7 @@ impl StatusBar<'_> {
             .add_modifier(Modifier::BOLD)
     }
 
-    /// O anki modu temsil eden kısa ve öz etiket metni.
+    /// Short label drawn for each mode.
     const fn mode_label(mode: Mode) -> &'static str {
         match mode {
             Mode::Normal => " ◆ NORMAL ",
@@ -73,8 +76,7 @@ impl StatusBar<'_> {
         }
     }
 
-    /// İmlecimizin dosyanın yüzde kaçlık bir kısmına denk geldiğini hesaplıyoruz.
-    /// (Matematiksel olarak ufak bir bölme işlemi yapıp yüzdelik değere çeviriyoruz.)
+    /// How far through the file the cursor is, as a percentage.
     fn scroll_percentage(&self) -> usize {
         let last = self.line_count.saturating_sub(1);
         (self.position.line * 100).checked_div(last).unwrap_or(100)
@@ -90,12 +92,12 @@ impl Widget for StatusBar<'_> {
         let base = self.theme.status;
         surface.set_style(area, base);
 
-        // ── Sol Kısım ─────────────────────────────────────────────────────────
-        // Buraya sırasıyla şunları diziyoruz: [MOD ETİKETİ] [Ayraç] [Dosya Adı] [Kaydedilmemişlik Noktası] [Çoklu İmleç Bilgisi]
+        // ── Left ──────────────────────────────────────────────────────────────
+        // [mode label] [separator] [file name] [dirty mark] [cursor count]
         let mode_style = self.mode_style();
         let mut left = vec![
             Span::styled(Self::mode_label(self.mode), mode_style),
-            // Mod etiketi ile dosya adı arasındaki blok tarzı şık ayracımız.
+            // Block-style separator between the mode label and the file name.
             Span::styled(
                 "▌",
                 mode_style
@@ -115,8 +117,8 @@ impl Widget for StatusBar<'_> {
             ));
         }
 
-        // ── Sağ Kısım ─────────────────────────────────────────────────────────
-        // Ve sağ tarafa da şunları hizalıyoruz: [Dil] [Satır Sonu] [Satır:Sütun] [%]
+        // ── Right ─────────────────────────────────────────────────────────────
+        // [language] [line ending] [cursor count] [position] [scroll %]
         let pct = self.scroll_percentage();
         let scroll_icon = match pct {
             0 => "▁",
@@ -126,26 +128,83 @@ impl Widget for StatusBar<'_> {
             75..=99 => "▇",
             _ => "█",
         };
-        let right = Line::from(Span::styled(
-            format!(
-                " {}  {}  {}  Ln {} Col {}  {}{}% ",
-                self.language,
-                self.line_ending.label(),
-                if self.cursor_count > 1 {
-                    format!("{} cursors", self.cursor_count)
-                } else {
-                    String::new()
-                },
-                self.position.line + 1,
-                self.position.col + 1,
-                scroll_icon,
-                pct,
-            ),
-            base,
-        ))
-        .right_aligned();
+        let mut segments = vec![
+            self.language.to_string(),
+            self.line_ending.label().to_string(),
+        ];
+        if self.cursor_count > 1 {
+            segments.push(format!("{} cursors", self.cursor_count));
+        }
+        segments.push(format!(
+            "Ln {} Col {}",
+            self.position.line + 1,
+            self.position.col + 1
+        ));
+        segments.push(format!("{scroll_icon}{pct}%"));
 
-        Line::from(left).render(area, surface);
-        right.render(area, surface);
+        let left = Line::from(left);
+        let right =
+            Line::from(Span::styled(format!(" {} ", segments.join("  ")), base)).right_aligned();
+
+        // A right-aligned paragraph longer than the area draws over the left
+        // side; omit it instead of letting it overwrite the file name.
+        let show_right = left.width() + right.width() <= usize::from(area.width);
+        left.render(area, surface);
+        if show_right {
+            right.render(area, surface);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::Theme;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    fn render(bar: StatusBar<'_>, width: u16) -> String {
+        let backend = TestBackend::new(width, 1);
+        let mut terminal = Terminal::new(backend).expect("test terminal");
+        terminal
+            .draw(|frame| frame.render_widget(bar, frame.area()))
+            .expect("draw");
+        terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect()
+    }
+
+    fn bar(theme: &Theme) -> StatusBar<'_> {
+        StatusBar {
+            mode: Mode::Normal,
+            name: "main.rs",
+            dirty: false,
+            language: "rust",
+            position: Position::new(0, 0),
+            line_count: 10,
+            line_ending: LineEnding::Lf,
+            cursor_count: 1,
+            theme,
+        }
+    }
+
+    #[test]
+    fn single_cursor_does_not_leave_an_empty_segment() {
+        let theme = Theme::default();
+        let line = render(bar(&theme), 80);
+        assert!(line.contains("rust  LF  Ln 1 Col 1"));
+        assert!(!line.contains("LF    Ln"));
+    }
+
+    #[test]
+    fn narrow_bar_drops_the_right_side_instead_of_overwriting_the_name() {
+        let theme = Theme::default();
+        let line = render(bar(&theme), 24);
+        assert!(line.contains("main.rs"));
+        assert!(!line.contains("rust"));
     }
 }
