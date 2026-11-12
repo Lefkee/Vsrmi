@@ -26,12 +26,16 @@ MODES     i insert    v visual    V line    : command    / search
 
 MOVE      h j k l     w b e words     0 ^ $ line     gg G file
 EDIT      x delete    dd line     yy yank    p paste    u undo
+          Ctrl+R redo     Alt+↑/↓ add cursor     Esc collapse
 SEARCH    / next      ? previous      n / N repeat
 FILES     Ctrl+B tree     Ctrl+N / Ctrl+P buffers     Ctrl+S save
+          Ctrl+Q quit     Tab accept completion
 
-COMMANDS  :w [path]  :q[!]  :wq  :e[!] path  :bn  :bp
+COMMANDS  :w [path]  :q[!]  :wq  :e[!] path  :bn  :bp  :help
           :set <option> [value]     :theme <name>     :<line>
-          :%s/pattern/replacement/g";
+          :%s/pattern/replacement/g
+
+LANGUAGES rust c cpp zig python markdown toml json yaml shell";
 
 /// Parse and execute a command line, without the leading `:`.
 pub fn run(app: &mut App, line: &str) {
@@ -66,7 +70,7 @@ fn execute(app: &mut App, command: Command) {
             all,
             whole_file,
         } => substitute(app, &pattern, &replacement, all, whole_file),
-        Command::Help => app.show_popup("Vsrmi", HELP),
+        Command::Help => app.show_popup(format!("Vsrmi {}", env!("CARGO_PKG_VERSION")), HELP),
     }
 }
 
@@ -220,4 +224,26 @@ fn substitute(app: &mut App, pattern: &str, replacement: &str, all: bool, whole_
         app.info(format!("replaced {replaced} occurrence(s)"));
     }
     app.mode = Mode::Normal;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::HELP;
+
+    #[test]
+    fn help_lists_modern_keys_and_languages() {
+        for needle in [
+            "Ctrl+B",
+            "Ctrl+Q",
+            "Ctrl+R",
+            "Alt+",
+            "LANGUAGES",
+            "toml",
+            "yaml",
+            "shell",
+            ":help",
+        ] {
+            assert!(HELP.contains(needle), "missing {needle}");
+        }
+    }
 }
