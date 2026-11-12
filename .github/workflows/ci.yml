@@ -62,3 +62,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.88
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --all-targets --locked
+
+  package:
+    name: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Checks the published crate: README, license, excludes and the files
+      # cargo would actually upload. A clean checkout has no dirty state.
+      - run: cargo package --locked
