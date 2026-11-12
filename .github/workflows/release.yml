@@ -66,9 +66,9 @@ jobs:
       - name: Package (unix)
         if: runner.os != 'Windows'
         run: |
-          staging="termi-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          staging="vsrmi-${GITHUB_REF_NAME}-${{ matrix.target }}"
           mkdir "$staging"
-          cp "target/${{ matrix.target }}/release/termi" "$staging/"
+          cp "target/${{ matrix.target }}/release/vsrmi" "$staging/"
           cp README.md LICENSE config.example.toml "$staging/"
           tar czf "$staging.tar.gz" "$staging"
 
@@ -76,15 +76,15 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $staging = "termi-$env:GITHUB_REF_NAME-${{ matrix.target }}"
+          $staging = "vsrmi-$env:GITHUB_REF_NAME-${{ matrix.target }}"
           New-Item -ItemType Directory $staging | Out-Null
-          Copy-Item "target/${{ matrix.target }}/release/termi.exe" $staging
+          Copy-Item "target/${{ matrix.target }}/release/vsrmi.exe" $staging
           Copy-Item README.md, LICENSE, config.example.toml $staging
           Compress-Archive -Path $staging -DestinationPath "$staging.zip"
 
       - uses: actions/upload-artifact@v7
         with:
-          name: termi-${{ matrix.target }}
+          name: vsrmi-${{ matrix.target }}
           path: |
             *.tar.gz
             *.zip
@@ -101,7 +101,7 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           path: dist
-          pattern: termi-*
+          pattern: vsrmi-*
           merge-multiple: true
 
       - name: Checksums
