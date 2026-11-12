@@ -482,4 +482,20 @@ mod tests {
             Some("toml")
         );
     }
+
+    #[test]
+    fn json_keys_and_literals() {
+        let line = "{\"ok\": true}";
+        assert_eq!(kind_at("json", line, 2), Some(HighlightKind::Attribute));
+        assert_eq!(kind_at("json", line, 7), Some(HighlightKind::Constant));
+
+        assert_eq!(
+            kind_at("json", "{\"k\": \"v\"}", 7),
+            Some(HighlightKind::String)
+        );
+        assert_eq!(
+            crate::syntax::detect(Path::new("data.json")).map(|h| h.language.name),
+            Some("json")
+        );
+    }
 }

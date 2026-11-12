@@ -10,6 +10,7 @@
 
 pub mod c;
 pub mod cpp;
+pub mod json;
 pub mod markdown;
 pub mod python;
 pub mod rust;
@@ -32,6 +33,7 @@ pub fn all() -> &'static [&'static Language] {
         &python::PYTHON,
         &markdown::MARKDOWN,
         &toml::TOML,
+        &json::JSON,
     ];
     ALL
 }
