@@ -118,6 +118,12 @@ impl Document {
         self.line_ending
     }
 
+    /// Whether this is the untouched scratch document shown on a bare start.
+    #[must_use]
+    pub fn is_blank_scratch(&self) -> bool {
+        self.path.is_none() && !self.dirty && self.text.len_chars() == 0
+    }
+
     /// File name for the tab strip and status bar.
     #[must_use]
     pub fn display_name(&self) -> &str {
@@ -430,5 +436,20 @@ mod tests {
         let mut document = doc("abc");
         assert_eq!(document.remove(10, 20), "");
         assert_eq!(document.text().to_string(), "abc");
+    }
+
+    #[test]
+    fn blank_scratch_is_unnamed_empty_and_clean() {
+        let mut document = Document::new();
+        assert!(document.is_blank_scratch());
+
+        document.insert(0, "x");
+        assert!(!document.is_blank_scratch());
+    }
+
+    #[test]
+    fn a_named_empty_document_is_not_a_blank_scratch() {
+        let document = Document::from_text("", Some(std::path::PathBuf::from("empty.rs")));
+        assert!(!document.is_blank_scratch());
     }
 }

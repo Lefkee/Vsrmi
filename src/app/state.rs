@@ -234,7 +234,6 @@ impl App {
 
     /// An untouched, unnamed buffer — the one opened at startup.
     fn is_scratch(&self, index: usize) -> bool {
-        let document = &self.buffers[index].document;
-        document.path().is_none() && !document.is_dirty() && document.len_chars() == 0
+        self.buffers[index].document.is_blank_scratch()
     }
 }
