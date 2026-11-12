@@ -66,7 +66,7 @@ fn execute(app: &mut App, command: Command) {
             all,
             whole_file,
         } => substitute(app, &pattern, &replacement, all, whole_file),
-        Command::Help => app.show_popup("termi", HELP),
+        Command::Help => app.show_popup("Vsrmi", HELP),
     }
 }
 

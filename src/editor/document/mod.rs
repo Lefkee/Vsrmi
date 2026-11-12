@@ -132,7 +132,7 @@ impl Document {
 /// Disk I/O.
 impl Document {
     /// Open `path`, or start an empty document bound to it if it does not exist
-    /// yet — `termi new_file.rs` should not be an error.
+    /// yet — `vsrmi new_file.rs` should not be an error.
     ///
     /// # Errors
     /// Returns an error if the file exists but cannot be read or is not UTF-8.

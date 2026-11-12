@@ -1,4 +1,4 @@
-//! `termi` — a modern, modular terminal code editor.
+//! `Vsrmi` — a modern, modular terminal code editor.
 //!
 //! The crate is split into layers that only depend downwards:
 //!
@@ -28,17 +28,17 @@ use std::process::ExitCode;
 use anyhow::Result;
 
 const USAGE: &str = "\
-termi — a terminal code editor
+Vsrmi — a terminal code editor
 
 USAGE:
-    termi [OPTIONS] [FILE]...
+    vsrmi [OPTIONS] [FILE]...
 
 OPTIONS:
     -h, --help       Print this message
     -V, --version    Print the version
 
-Configuration lives in <config-dir>/termi/config.toml, and themes in
-<config-dir>/termi/themes/<name>.toml.";
+Configuration lives in <config-dir>/vsrmi/config.toml, and themes in
+<config-dir>/vsrmi/themes/<name>.toml.";
 
 fn main() -> ExitCode {
     match parse_arguments() {
@@ -47,7 +47,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Arguments::Version => {
-            println!("termi {}", env!("CARGO_PKG_VERSION"));
+            println!("Vsrmi {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
         Arguments::Open(files) => match edit(files) {
@@ -55,7 +55,7 @@ fn main() -> ExitCode {
             Err(error) => {
                 // The terminal is already restored by this point, so a plain
                 // stderr message is safe and is what a shell expects.
-                eprintln!("termi: {error:#}");
+                eprintln!("vsrmi: {error:#}");
                 ExitCode::FAILURE
             }
         },

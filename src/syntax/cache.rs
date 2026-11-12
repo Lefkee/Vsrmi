@@ -57,6 +57,12 @@ impl HighlightCache {
         self.highlighter.map_or("plain", |h| h.language.name)
     }
 
+    /// Access the underlying language definition, if any.
+    #[must_use]
+    pub fn language(&self) -> Option<&'static crate::syntax::Language> {
+        self.highlighter.map(|h| h.language)
+    }
+
     /// Forget the state of every line after `line`.
     pub fn invalidate_from(&mut self, line: usize) {
         // The state line `line` *begins* in cannot be affected by an edit on

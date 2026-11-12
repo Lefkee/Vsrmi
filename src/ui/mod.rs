@@ -108,6 +108,12 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         }
     }
 
+    let ghost_text = if app.mode.is_insert() {
+        crate::editor::snippet::active_snippet(app.buffer())
+    } else {
+        None
+    };
+
     let editor = EditorView {
         buffer: app.buffer(),
         theme: &app.theme,
@@ -115,6 +121,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         selection: selection_range(app),
         search: app.search.is_active().then_some(&app.search),
         active_match: active_match(app),
+        ghost_text: ghost_text.as_deref(),
     };
     let editor_caret = editor.caret_position(regions.editor);
     frame.render_widget(editor, regions.editor);

@@ -33,20 +33,6 @@ pub enum Mode {
 }
 
 impl Mode {
-    /// Short uppercase label shown in the status bar.
-    #[must_use]
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::Normal => "NORMAL",
-            Self::Insert => "INSERT",
-            Self::Visual => "VISUAL",
-            Self::VisualLine => "V-LINE",
-            Self::Command => "COMMAND",
-            Self::Search => "SEARCH",
-            Self::Tree => "TREE",
-        }
-    }
-
     /// Whether movement in this mode should extend the selection instead of
     /// collapsing it.
     #[must_use]

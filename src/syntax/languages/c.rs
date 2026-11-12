@@ -97,4 +97,11 @@ pub static C: Language = Language {
         (r"^\s*#\s*[a-z]+", HighlightKind::Attribute),
     ],
     prose: false,
+    snippets: &[
+        ("in", "include "),
+        ("de", "define "),
+        ("ma", "main(int argc, char *argv[]) {\n    \n}"),
+        ("fo", "for (int i = 0; i < n; i++) {\n    \n}"),
+        ("if", "if () {\n    \n}"),
+    ],
 };

@@ -27,10 +27,10 @@ pub fn parse(input: &str) -> Result<Command, String> {
     if let Ok(line) = input.parse::<usize>() {
         return Ok(Command::GotoLine(line.saturating_sub(1)));
     }
-    if input.starts_with('s') || input.starts_with("%s") {
-        if let Some(command) = parse_substitute(input) {
-            return Ok(command);
-        }
+    if (input.starts_with('s') || input.starts_with("%s"))
+        && let Some(command) = parse_substitute(input)
+    {
+        return Ok(command);
     }
 
     let (head, rest) = match input.split_once(char::is_whitespace) {

@@ -146,4 +146,12 @@ pub static CPP: Language = Language {
         (r#"R"\([^)]*\)""#, HighlightKind::String),
     ],
     prose: false,
+    snippets: &[
+        ("in", "include "),
+        ("cl", "class  {}"),
+        ("te", "template <typename T>"),
+        ("st", "struct  {}"),
+        ("fo", "for (int i = 0; i < n; i++) {}"),
+        ("if", "if () {}"),
+    ],
 };
