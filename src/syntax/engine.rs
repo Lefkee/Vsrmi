@@ -537,4 +537,21 @@ mod tests {
             Some("shell")
         );
     }
+
+    #[test]
+    fn shell_quoted_strings_keep_comments_and_expansions_intact() {
+        assert_eq!(
+            kind_at("shell", "echo 'a # b'", 6),
+            Some(HighlightKind::String)
+        );
+        assert_eq!(
+            kind_at("shell", "echo '$HOME'", 6),
+            Some(HighlightKind::String)
+        );
+        assert_eq!(
+            kind_at("shell", "echo ${x#y}", 7),
+            Some(HighlightKind::Constant)
+        );
+        assert_eq!(kind_at("shell", "# note", 0), Some(HighlightKind::Comment));
+    }
 }

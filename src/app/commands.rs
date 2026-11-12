@@ -22,20 +22,26 @@ use crate::theme::Theme;
 /// Kept as one literal rather than generated from the keymap: the keymap is
 /// exhaustive and this is the short list worth memorising.
 const HELP: &str = "\
-MODES     i insert    v visual    V line    : command    / search
+MODES     i insert    v visual    V line
+          : command     / search
 
-MOVE      h j k l     w b e words     0 ^ $ line     gg G file
-EDIT      x delete    dd line     yy yank    p paste    u undo
-          Ctrl+R redo     Alt+↑/↓ add cursor     Esc collapse
+MOVE      h j k l     w b e words
+          0 ^ $ line     gg G file
+EDIT      x delete    dd line     yy yank
+          p paste     u undo     Ctrl+R redo
+          Alt+↑/↓ add cursor     Esc collapse
 SEARCH    / next      ? previous      n / N repeat
-FILES     Ctrl+B tree     Ctrl+N / Ctrl+P buffers     Ctrl+S save
-          Ctrl+Q quit     Tab accept completion
+FILES     Ctrl+B tree     Ctrl+N / Ctrl+P buffers
+          Ctrl+S save     Ctrl+Q quit
+          Tab accept completion
 
-COMMANDS  :w [path]  :q[!]  :wq  :e[!] path  :bn  :bp  :help
-          :set <option> [value]     :theme <name>     :<line>
-          :%s/pattern/replacement/g
+COMMANDS  :w [path]  :q[!]  :wq  :e[!] path
+          :bn  :bp  :help
+          :set <option> [value]     :theme <name>
+          :<line>     :%s/pattern/replacement/g
 
-LANGUAGES rust c cpp zig python markdown toml json yaml shell";
+LANGUAGES rust c cpp zig python markdown
+          toml json yaml shell";
 
 /// Parse and execute a command line, without the leading `:`.
 pub fn run(app: &mut App, line: &str) {
@@ -229,6 +235,10 @@ fn substitute(app: &mut App, pattern: &str, replacement: &str, all: bool, whole_
 #[cfg(test)]
 mod tests {
     use super::HELP;
+    use crate::theme::Theme;
+    use crate::ui::widgets::Popup;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
 
     #[test]
     fn help_lists_modern_keys_and_languages() {
@@ -245,5 +255,44 @@ mod tests {
         ] {
             assert!(HELP.contains(needle), "missing {needle}");
         }
+    }
+
+    #[test]
+    fn help_lines_fit_the_popup_without_wrapping() {
+        // The popup is 3/4 of an 80-column terminal, two columns of border,
+        // so anything wider than 58 wraps and pushes the tail off the box.
+        for line in HELP.lines() {
+            let width = line.chars().count();
+            assert!(width <= 58, "line too wide ({width}): {line}");
+        }
+    }
+
+    #[test]
+    fn help_popup_shows_the_language_line_at_80x24() {
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).expect("test terminal");
+        let theme = Theme::default();
+        terminal
+            .draw(|frame| {
+                frame.render_widget(
+                    Popup {
+                        title: "Vsrmi 0.1.0",
+                        body: HELP,
+                        hint: "press any key",
+                        theme: &theme,
+                    },
+                    frame.area(),
+                );
+            })
+            .expect("draw");
+        let screen: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect();
+        assert!(screen.contains("LANGUAGES"));
+        assert!(screen.contains("shell"));
     }
 }

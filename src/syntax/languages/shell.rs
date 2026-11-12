@@ -31,6 +31,11 @@ pub static SHELL: Language = Language {
     macro_suffix: false,
     capitalised_types: false,
     extra_rules: &[
+        // A single-quoted string has no expansions and no comments inside it,
+        // so it has to win outright. The broad `${...}` rule comes first so
+        // parameter operators such as `${x#y}` stay one token.
+        (r"'[^']*'", HighlightKind::String),
+        (r"\$\{[^}]*\}", HighlightKind::Constant),
         (r"\$\{?[A-Za-z_][A-Za-z0-9_]*\}?", HighlightKind::Constant),
         (r"\$[0-9@*#?$!-]", HighlightKind::Constant),
         (r"^[ \t]*[A-Za-z_][A-Za-z0-9_]*=", HighlightKind::Attribute),

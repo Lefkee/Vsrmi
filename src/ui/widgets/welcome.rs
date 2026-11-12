@@ -36,7 +36,9 @@ impl Welcome<'_> {
         let shortcut = |key: &str, label: &str| {
             Line::from(vec![
                 Span::styled(format!("{key:<8}"), self.theme.syntax.function),
-                Span::styled(label.to_string(), self.theme.text),
+                // Pad every label to the same width so centre alignment keeps
+                // the labels in one column instead of drifting line by line.
+                Span::styled(format!("{label:<14}"), self.theme.text),
             ])
         };
 
@@ -160,5 +162,23 @@ mod tests {
     fn tiny_terminals_do_not_panic() {
         let _ = render(19, 2);
         let _ = render(1, 1);
+    }
+
+    #[test]
+    fn shortcut_labels_share_a_column() {
+        // Centre alignment moves each line by half its own width, so labels of
+        // different lengths drift apart unless the lines are padded to a
+        // common width first.
+        let width = 80;
+        let screen = render(width, 24);
+        let column = |needle: &str| {
+            let byte = screen
+                .find(needle)
+                .unwrap_or_else(|| panic!("missing {needle}"));
+            screen[..byte].chars().count() % usize::from(width)
+        };
+        let insert = column("insert mode");
+        assert_eq!(insert, column("file tree"), "labels drift");
+        assert_eq!(insert, column("save"), "labels drift");
     }
 }
