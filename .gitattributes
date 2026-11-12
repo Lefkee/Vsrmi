@@ -8,4 +8,4 @@
 *.ico binary
 
 # Keep generated or vendored files out of diffs and language statistics.
-Cargo.lock linguist-generated=true -diff
+Cargo.lock linguist-generated=true
