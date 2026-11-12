@@ -498,4 +498,19 @@ mod tests {
             Some("json")
         );
     }
+
+    #[test]
+    fn yaml_keys_markers_and_comments() {
+        let line = "name: value # note";
+        assert_eq!(kind_at("yaml", line, 1), Some(HighlightKind::Attribute));
+        assert_eq!(kind_at("yaml", line, 12), Some(HighlightKind::Comment));
+
+        assert_eq!(kind_at("yaml", "---", 0), Some(HighlightKind::Heading));
+        assert_eq!(kind_at("yaml", "&anchor", 1), Some(HighlightKind::Constant));
+        assert_eq!(kind_at("yaml", "!!str", 1), Some(HighlightKind::Type));
+        assert_eq!(
+            crate::syntax::detect(Path::new("config.yml")).map(|h| h.language.name),
+            Some("yaml")
+        );
+    }
 }
