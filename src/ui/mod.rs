@@ -19,7 +19,8 @@ use crate::app::App;
 use crate::editor::buffer::Buffer;
 use crate::editor::selection::Range;
 use crate::ui::widgets::{
-    CommandBar, EditorView, FileTree, Popup, SearchBox, StatusBar, Tab, TabBar, editor_view,
+    CommandBar, EditorView, FileTree, Popup, SearchBox, StatusBar, Tab, TabBar, Welcome,
+    editor_view,
 };
 
 /// Where each part of the interface goes this frame.
@@ -80,6 +81,7 @@ impl Regions {
 pub fn draw(frame: &mut Frame, app: &mut App) {
     let show_tabs = app.config.show_tabs && app.buffers.len() > 1;
     let regions = Regions::split(frame.area(), show_tabs, app.tree_visible);
+    let welcome = app.buffer().document.is_blank_scratch();
     // Page motions need the window height, which is only known here.
     app.viewport_height = regions.editor.height;
 
@@ -123,8 +125,22 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         active_match: active_match(app),
         ghost_text: ghost_text.as_deref(),
     };
-    let editor_caret = editor.caret_position(regions.editor);
+    let editor_caret = if welcome {
+        None
+    } else {
+        editor.caret_position(regions.editor)
+    };
     frame.render_widget(editor, regions.editor);
+
+    if welcome {
+        frame.render_widget(
+            Welcome {
+                version: env!("CARGO_PKG_VERSION"),
+                theme: &app.theme,
+            },
+            regions.editor,
+        );
+    }
 
     if let Some(area) = regions.tabs {
         let tabs: Vec<Tab<'_>> = app
