@@ -14,6 +14,7 @@ pub mod json;
 pub mod markdown;
 pub mod python;
 pub mod rust;
+pub mod shell;
 pub mod toml;
 pub mod yaml;
 pub mod zig;
@@ -36,6 +37,7 @@ pub fn all() -> &'static [&'static Language] {
         &toml::TOML,
         &json::JSON,
         &yaml::YAML,
+        &shell::SHELL,
     ];
     ALL
 }

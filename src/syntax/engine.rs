@@ -513,4 +513,28 @@ mod tests {
             Some("yaml")
         );
     }
+
+    #[test]
+    fn shell_keywords_variables_and_comments() {
+        let line = "if [ -n $HOME ]; then";
+        assert_eq!(kind_at("shell", line, 0), Some(HighlightKind::Keyword));
+        assert_eq!(kind_at("shell", line, 8), Some(HighlightKind::Constant));
+        assert_eq!(kind_at("shell", line, 17), Some(HighlightKind::Keyword));
+
+        // A variable inside double quotes is part of the string, not a separate
+        // constant; the engine has no lookahead to split it.
+        assert_eq!(
+            kind_at("shell", "echo \"$HOME\"", 6),
+            Some(HighlightKind::String)
+        );
+        assert_eq!(kind_at("shell", "# note", 0), Some(HighlightKind::Comment));
+        assert_eq!(
+            kind_at("shell", "VALUE=1", 0),
+            Some(HighlightKind::Attribute)
+        );
+        assert_eq!(
+            crate::syntax::detect(Path::new("build.sh")).map(|h| h.language.name),
+            Some("shell")
+        );
+    }
 }
