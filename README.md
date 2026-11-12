@@ -1,10 +1,40 @@
 # Vsrmi
 
+[![CI](https://github.com/Lefkee/Vsrmi/actions/workflows/ci.yml/badge.svg)](https://github.com/Lefkee/Vsrmi/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Rust: 1.88+](https://img.shields.io/badge/rust-1.88%2B-orange.svg)](https://www.rust-lang.org)
+[![Version: 0.1.0](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/Lefkee/Vsrmi/releases)
 
 > **Vsrmi** — VS Code benzeri akıllı tamamlama ve otomatik parantez kapatma ile donatılmış, terminal içinde çalışan modal kod editörü.  
 > [Termi] projesinden çatallanmıştır. Rust, [ratatui] ve [crossterm] ile inşa edilmiştir.
+
+---
+
+## 👀 Önizleme
+
+Boş bir oturum, sürümü ve hatırlanmaya değer kısayolları gösteren bir karşılama paneliyle açılır:
+
+```text
+┌──────────────────────────────────────────────────┐
+│                                                  │
+│                  vsrmi  v0.1.0                   │
+│          a modal terminal code editor            │
+│                                                  │
+│          i        insert mode                    │
+│          :help    every key                      │
+│          Ctrl+B   file tree                      │
+│          Ctrl+S   save                           │
+│                                                  │
+│      Press i to start · :e <file> to open        │
+│                                                  │
+└──────────────────────────────────────────────────┘
+```
+
+Durum çubuğu solda modu ve dosyayı, sağda dili, imleç konumunu ve kaydırma yüzdesini gösterir:
+
+```text
+◆ NORMAL ▌ dosyaadi.py ●                 python  LF  Ln 12 Col 8  ▅42%
+```
 
 ---
 
@@ -14,7 +44,7 @@
 |---|---|
 | 🔤 **Modal Düzenleme** | Normal / Insert / Visual / Command modları, vi-tarzı hareketler |
 | 🔍 **Arama** | Artımlı, literal veya regex, akıllı büyük/küçük harf |
-| 🎨 **Sözdizimi Vurgulama** | Rust, C, C++, Zig, Python, Markdown |
+| 🎨 **Sözdizimi Vurgulama** | Rust, C, C++, Zig, Python, Markdown, TOML, JSON, YAML, Shell |
 | 💡 **Akıllı Tamamlama** | Ghost-text; keyword, type, constant ve yerel kelime tahmini |
 | 🔒 **Otomatik Çift Kapatma** | `()` `[]` `{}` `""` `''` otomatik kapanır, Backspace ikisini siler |
 | 📁 **Çoklu Buffer** | Sekme şeridi, dosya ağacı (`Ctrl+B`), atomik kayıt |
@@ -86,6 +116,10 @@ Vsrmi, dosya uzantısından dili otomatik algılar:
 | `.zig` | Zig |
 | `.py` | Python |
 | `.md` | Markdown |
+| `.toml` `Cargo.lock` | TOML |
+| `.json` | JSON |
+| `.yaml` `.yml` | YAML |
+| `.sh` `.bash` `.zsh` `.fish` `.ksh` | Shell |
 
 ```sh
 vsrmi main.py        # Python modu ile açar
@@ -101,7 +135,7 @@ vsrmi src/main.rs    # Rust modu ile açar
 Ekranın altındaki durum çubuğu soldan sağa şu bilgileri gösterir:
 
 ```
-◆ NORMAL ▌ dosyaadi.py ●        python  LF  Ln 12 Col 8  ▅42%
+◆ NORMAL ▌ dosyaadi.py ●                 python  LF  Ln 12 Col 8  ▅42%
 ```
 
 | Gösterge | Açıklama |
@@ -189,6 +223,7 @@ Dosya ağacında uzantı etiketleri gösterilir:
 :<satır>           satıra atla
 :set <ayar>        ayar değiştir
 :theme <isim>      tema değiştir
+:help              kısayol ve dil listesi
 :%s/desen/yeni/g   toplu değiştir
 ```
 
@@ -261,6 +296,4 @@ MIT — Ayrıntılar için [LICENSE](LICENSE) dosyasına bakın.
 [ratatui]: https://ratatui.rs
 [crossterm]: https://github.com/crossterm-rs/crossterm
 [Termi]: https://github.com/tuna4ll/termi
-[releases]: https://github.com/Lefkee/Vsrmi/releases
-[CONTRIBUTING.md]: CONTRIBUTING.md
 
